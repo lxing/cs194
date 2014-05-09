@@ -68,7 +68,7 @@ class DocumentList(Resource):
 
 class Relationship(Resource):
   # TODO: figure out how to filter by built-in type
-  def get(self, relationship_type):
+  def get(self):
     return map(lambda rel: {'start': rel.start['uuid'], 'end': rel.end['uuid']},
       gdb.relationships.all())
 
@@ -80,7 +80,8 @@ api.add_resource(Author, '/authors/<string:author_id>')
 api.add_resource(AuthorList, '/authors')
 api.add_resource(Document, '/documents/<string:document_id>')
 api.add_resource(DocumentList, '/documents')
-api.add_resource(Relationship, 'relationships/<string:relationship_type')
+api.add_resource(Relationship, '/relationships')
+# api.add_resource(RelationshipList, '/relationships')
 
 if __name__ == '__main__':
     app.run(debug=True)
