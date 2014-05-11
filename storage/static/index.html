@@ -50,11 +50,8 @@ var svg = d3.select("body").append("svg")
 
 $.get("http://localhost:5000/authors", function(authors) {
   $.get("http://localhost:5000/relationships", function(relationships) {
-    console.log(authors);
-    console.log(relationships);
 
     links = createVisualLinks(authors, relationships);
-    console.log(links);
     loadVisualization(authors, links);
   })
   
@@ -65,6 +62,7 @@ function createVisualLinks(authors, relationships) {
   for (i=0; i<authors.length; ++i) {
     author = authors[i];
     authorIndices[author["uuid"]] = i;
+    console.log(author["uuid"])
   }
 
   var links = [];
@@ -112,13 +110,11 @@ function loadVisualization(authors, links) {
             d3.select(".foreignObject").remove();
             contextMenuShowing = false;
           } else {
-            console.log("ROGER HAU");
             d3.event.preventDefault();
             contextMenuShowing = true;
             selectedNode = d;
 
             mousePosition = [d3.event.x, d3.event.y];
-            console.log(mousePosition);
             foreignObj = d3.select(this).append("foreignObject")
                 .attr("width", 240)
                 .attr("height", 500);
@@ -179,7 +175,6 @@ function loadVisualization(authors, links) {
   }
 
   function updateNode() {
-    console.log(selectedNode);
     selectedNode.name = "ROGER HAU";
   }
 
