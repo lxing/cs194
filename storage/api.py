@@ -15,7 +15,7 @@ gdb = GraphDatabase('http://localhost:7474/db/data/')
 
 def get_by_type_and_uuid(type, uuid):
   nodes = gdb.nodes.filter(Q('type',iexact=type) & Q('uuid',iexact=uuid))
-  if len(nodes) > 0:
+  if len(nodes) == 0:
     abort(404, message="Node '{}' doesn't exist".format(uuid))
   return nodes[0]
 
