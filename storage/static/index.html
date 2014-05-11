@@ -49,34 +49,46 @@ var svg = d3.select("body").append("svg")
     .attr("height", height);
 
 $.get("http://localhost:5000/authors", function(authors) {
-  $.get("http://localhost:5000/relationships", function(relationships) {
+  $.get("http://localhost:5000/documents", function(documents) {
+    $.get("http://localhost:5000/relationships", function(relationships) {
 
-    links = createVisualLinks(authors, relationships);
-    loadVisualization(authors, links);
+      graph = createAuthoredByLinks(authors, documents, relationships);
+      loadVisualization(graph[0], graph[1]);
+    })
   })
-  
 });
 
-function createVisualLinks(authors, relationships) {
-  var authorIndices = {}
-  for (i=0; i<authors.length; ++i) {
+function createAuthoredByLinks(authors, documents, relationships) {
+  var i = 0;
+  var nodes = [];
+  var authorIndices = {};
+  for (; i<authors.length; ++i) {
     author = authors[i];
     authorIndices[author["uuid"]] = i;
-    console.log(author["uuid"])
+    console.log(author["uuid"]);
+    nodes.push(author);
+  }
+
+  var documentIndices = {};
+  for (; i<documents.length; ++i) {
+    doc = documents[i];
+    authorIndices[doc["uuid"]] = i;
+    console.log(doc["uuid"]);
+    nodes.push(doc);
   }
 
   var links = [];
   for (i=0; i<relationships.length; ++i) {
     var relation = relationships[i];
     sourceIndex = authorIndices[relation.start];
-    targetIndex = authorIndices[relation.end];
+    targetIndex = documentIndices[relation.end];
 
     links.push( {
       source: sourceIndex,
       target: targetIndex
     });
   }
-  return links;
+  return [nodes, links];
 }
 
 // loadVisualization();
