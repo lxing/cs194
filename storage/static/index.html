@@ -51,8 +51,9 @@ var svg = d3.select("body").append("svg")
 $.get("http://localhost:5000/authors", function(authors) {
   $.get("http://localhost:5000/documents", function(documents) {
     $.get("http://localhost:5000/relationships", function(relationships) {
-
+      console.log(relationships);
       graph = createAuthoredByLinks(authors, documents, relationships);
+      console.log(graph[1]);
       loadVisualization(graph[0], graph[1]);
     })
   })
@@ -65,7 +66,6 @@ function createAuthoredByLinks(authors, documents, relationships) {
   for (; i<authors.length; ++i) {
     author = authors[i];
     authorIndices[author["uuid"]] = i;
-    console.log(author["uuid"]);
     nodes.push(author);
   }
 
@@ -73,7 +73,6 @@ function createAuthoredByLinks(authors, documents, relationships) {
   for (; i<documents.length; ++i) {
     doc = documents[i];
     authorIndices[doc["uuid"]] = i;
-    console.log(doc["uuid"]);
     nodes.push(doc);
   }
 
@@ -85,7 +84,8 @@ function createAuthoredByLinks(authors, documents, relationships) {
 
     links.push( {
       source: sourceIndex,
-      target: targetIndex
+      target: targetIndex,
+      weight: 5
     });
   }
   return [nodes, links];
@@ -101,7 +101,7 @@ function loadVisualization(authors, links) {
       .data(links)
       .enter().append("line")
       .attr("class", "link")
-      .style("stroke-width", function(d) { return Math.sqrt(d.value); });
+      .style("stroke-width", function(d) { return Math.sqrt(d.weight); });
 
   var gnodes = svg.selectAll('g.gnode')
     .data(authors);

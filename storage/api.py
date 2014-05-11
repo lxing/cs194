@@ -77,7 +77,7 @@ class Authorship(Resource):
   def put(self, document_id, author_id):
     doc_node = get_by_type_and_uuid('document', document_id)
     author_node = get_by_type_and_uuid('author', author_id)
-    doc_node.relationships.create('AuthoredBy', author_node)
+    doc_node.relationships.create('AuthoredBy', author_node, weight="5")
 
 
 class RelationshipList(Resource):
