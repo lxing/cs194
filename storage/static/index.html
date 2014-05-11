@@ -26,13 +26,13 @@
 <script>
 
 var width = 1600,
-    height = 800;
+    height = 1200;
 
 var color = d3.scale.category20();
 
 var force = d3.layout.force()
-    .charge(-240)
-    .linkDistance(120)
+    .charge(-120)
+    .linkDistance(60)
     .size([width, height]);
 
 d3.selection.prototype.moveToFront = function() {
@@ -51,9 +51,9 @@ var svg = d3.select("body").append("svg")
 $.get("http://localhost:5000/authors", function(authors) {
   $.get("http://localhost:5000/documents", function(documents) {
     $.get("http://localhost:5000/relationships", function(relationships) {
-      console.log(relationships);
+      console.log(authors);
+      console.log(documents);
       graph = createAuthoredByLinks(authors, documents, relationships);
-      console.log(graph[1]);
       loadVisualization(graph[0], graph[1]);
     })
   })
@@ -70,17 +70,17 @@ function createAuthoredByLinks(authors, documents, relationships) {
   }
 
   var documentIndices = {};
-  for (; i<documents.length; ++i) {
-    doc = documents[i];
-    authorIndices[doc["uuid"]] = i;
+  for (j=0; j<documents.length; ++j) {
+    doc = documents[j];
+    documentIndices[doc["uuid"]] = i+j;
     nodes.push(doc);
   }
 
   var links = [];
   for (i=0; i<relationships.length; ++i) {
     var relation = relationships[i];
-    sourceIndex = authorIndices[relation.start];
-    targetIndex = documentIndices[relation.end];
+    sourceIndex = documentIndices[relation.start];
+    targetIndex = authorIndices[relation.end];
 
     links.push( {
       source: sourceIndex,
@@ -97,6 +97,9 @@ function loadVisualization(authors, links) {
        .links(links)
        .start();
 
+  var drag = force.drag()
+      .on("dragstart", dragstart);
+
   var link = svg.selectAll(".link")
       .data(links)
       .enter().append("line")
@@ -109,8 +112,14 @@ function loadVisualization(authors, links) {
   var nodeEnter = gnodes.enter().append("g")
     .classed('gnode', true)
     .on("mouseover", function(d){
-          d3.select(this).append("text")
-            .text(d.name);
+          if (d.type == "author") {
+            d3.select(this).append("text")
+              .text(d.name);
+            }
+          if (d.type == "document") {
+            d3.select(this).append("text")
+              .text(d.title);
+          }
         })
     .on("mouseout", function(d) {
           d3.select(this).select("text").remove();
@@ -156,26 +165,45 @@ function loadVisualization(authors, links) {
   var node = gnodes.append("circle")
       .attr("class", "node")
       .attr("r", 5)
-      .style("fill", function(d) { return color(d.group); })
-      .call(force.drag);
+      .style("fill", function(d) {
+        if (d.type == "author") {
+          return "#99CCFF";
+        }
+        return color(d.group);
+      })
+      .on("dblclick", dblclick)
+      .call(drag);
+  
+    force.on("tick", function() {
+      link.attr("x1", function(d) { return d.source.x; })
+          .attr("y1", function(d) { return d.source.y; })
+          .attr("x2", function(d) { return d.target.x; })
+          .attr("y2", function(d) { return d.target.y; });
 
-  force.on("tick", function() {
-    link.attr("x1", function(d) { return d.source.x; })
-        .attr("y1", function(d) { return d.source.y; })
-        .attr("x2", function(d) { return d.target.x; })
-        .attr("y2", function(d) { return d.target.y; });
-
-    gnodes.attr("transform", function(d) { 
-        return 'translate(' + [d.x, d.y] + ')'; 
+      gnodes.attr("transform", function(d) { 
+          return 'translate(' + [d.x, d.y] + ')';
+      });
     });
-  });
+
+  function dblclick(d) {
+    d3.select(this)
+      .classed("fixed", d.fixed = false)
+      .attr("r", 5);
+  }
+
+  function dragstart(d) {
+    d3.select(this)
+        .classed("fixed", d.fixed = true)
+        .attr("r", 8);
+  }
 }
+
 
 // d3.select("body").on('contextmenu',function (d,i) {
 
 // });
 
-  var forceBool = false;
+  var forceBool = true;
   function forceToggle() {
     if (forceBool == true) {
       force.start()
