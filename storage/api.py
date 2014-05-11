@@ -81,10 +81,13 @@ class Authorship(Resource):
 
 
 class RelationshipList(Resource):
+  def serialize_relationship_entry(self, rel):
+    endpoints = {'start': rel.start['uuid'], 'end': rel.end['uuid']}
+    return dict(rel.properties.items() + endpoints.items())
+
   # TODO: figure out how to filter by built-in type
   def get(self):
-    return map(lambda rel: {'start': rel.start['uuid'], 'end': rel.end['uuid']},
-      gdb.relationships.all())
+    return map(lambda rel: self.serialize_relationship_entry(rel), gdb.relationships.all())
 
 
 ########
