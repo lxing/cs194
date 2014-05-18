@@ -32,7 +32,6 @@ def abort_if_missing_fields(form, fields):
 ###############
 # API Classes #
 ###############
-
 class Author(Resource):
   def get(self, author_id):
     get_by_type_and_uuid('author', author_id).properties
@@ -45,12 +44,10 @@ class Author(Resource):
     author_node['uuid'] = author_id
     author_node['name'] = request.form['name']
 
-
 class AuthorList(Resource):
   def get(self):
     author_nodes = gdb.nodes.filter(Q('type', iexact='author'))
     return map(lambda author_node: author_node.properties, author_nodes)
-
 
 class Document(Resource):
   def get(self, document_id):
@@ -58,27 +55,48 @@ class Document(Resource):
 
   def put(self, document_id):
     abort_if_duplicate('document', document_id)
-    abort_if_missing_fields(request.form, ['title', 'url'])
+    abort_if_missing_fields(request.form, ['title', 'url']) # Add body
 
     doc_node = gdb.nodes.create(type='document')
     doc_node['uuid'] = document_id
     doc_node['title'] = request.form['title']
     doc_node['url'] = request.form['url']
-
+    doc_node['body'] = request.form['title'] # Change to body later
 
 class DocumentList(Resource):
   def get(self):
     doc_nodes = gdb.nodes.filter(Q('type', iexact='document'))
     return map(lambda doc_node: doc_node.properties, doc_nodes)
 
+class Entity(Resource):
+  def get(self, entity_id):
+    get_by_type_and_uuid('entity', entity_id).properties
+
+  def put(self, entity_id):
+    abort_if_duplicate('entity', entity_id)
+    abort_if_missing_fields(request.form, ['name'])
+
+    entity_node = gdb.nodes.create(type='entity')
+    entity_node['uuid'] = entity_id
+    entity_node['name'] = request.form['name']
+
+class EntityList(Resource):
+  def get(self):
+    entity_nodes = gdb.nodes.filter(Q('type', iexact='entity'))
+    return map(lambda entity_node: entity_node.properties, entity_nodes)
 
 
-class Authorship(Resource):
+class AuthoredBy(Resource):
   def put(self, document_id, author_id):
     doc_node = get_by_type_and_uuid('document', document_id)
     author_node = get_by_type_and_uuid('author', author_id)
-    doc_node.relationships.create('AuthoredBy', author_node, weight="5")
+    doc_node.relationships.create('AuthoredBy', author_node, type='AuthoredBy')
 
+class HasEntity(Resource):
+  def put(self, document_id, entity_id):
+    doc_node = get_by_type_and_uuid('document', document_id)
+    entity_node = get_by_type_and_uuid('entity', entity_id)
+    doc_node.relationships.create('HasEntity', entity_node, type='HasEntity')
 
 class RelationshipList(Resource):
   def serialize_relationship_entry(self, rel):
@@ -97,7 +115,10 @@ api.add_resource(Author, '/authors/<string:author_id>')
 api.add_resource(AuthorList, '/authors')
 api.add_resource(Document, '/documents/<string:document_id>')
 api.add_resource(DocumentList, '/documents')
-api.add_resource(Authorship, '/documents/<string:document_id>/authors/<string:author_id>')
+api.add_resource(Entity, '/entities/<string:entity_id>')
+api.add_resource(EntityList, '/entities')
+
+api.add_resource(AuthoredBy, '/documents/<string:document_id>/authors/<string:author_id>')
 api.add_resource(RelationshipList, '/relationships')
 
 if __name__ == '__main__':
