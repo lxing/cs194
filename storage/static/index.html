@@ -46,7 +46,8 @@ var selectedNode = null;
 
 var svg = d3.select("body").append("svg")
     .attr("width", width)
-    .attr("height", height);
+    .attr("height", height)
+    .call();
 
 $.get("http://localhost:5000/authors", function(authors) {
   $.get("http://localhost:5000/documents", function(documents) {
@@ -213,6 +214,13 @@ function loadVisualization(authors, links) {
       forceBool = true;
     }
   }
+
+  var zoom = d3.bheavior.zoom()
+    .x(x)
+    .y(y)
+    .scaleExtent([1,5])
+    .on("zoom", zoomed);
+
 
   function updateNode() {
     selectedNode.name = "ROGER HAU";
