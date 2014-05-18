@@ -47,7 +47,7 @@ var selectedNode = null;
 var svg = d3.select("body").append("svg")
     .attr("width", width)
     .attr("height", height)
-    .call();
+    .call(d3.behavior.zoom().scaleExtent([-8, 8]).on("zoom", zoom));
 
 $.get("http://localhost:5000/authors", function(authors) {
   $.get("http://localhost:5000/documents", function(documents) {
@@ -166,6 +166,7 @@ function loadVisualization(authors, links) {
   var node = gnodes.append("circle")
       .attr("class", "node")
       .attr("r", 5)
+      .attr("transform", function(d) { return "translate(" + d + ")"; })
       .style("fill", function(d) {
         if (d.type == "author") {
           return "#99CCFF";
@@ -197,6 +198,11 @@ function loadVisualization(authors, links) {
         .classed("fixed", d.fixed = true)
         .attr("r", 8);
   }
+
+  function zoom() {
+    //apply the transform to the g element
+    innerSvg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+  }
 }
 
 
@@ -214,13 +220,6 @@ function loadVisualization(authors, links) {
       forceBool = true;
     }
   }
-
-  var zoom = d3.bheavior.zoom()
-    .x(x)
-    .y(y)
-    .scaleExtent([1,5])
-    .on("zoom", zoomed);
-
 
   function updateNode() {
     selectedNode.name = "ROGER HAU";
