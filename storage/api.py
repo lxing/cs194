@@ -105,7 +105,8 @@ class RelationshipList(Resource):
 
   # TODO: figure out how to filter by built-in type
   def get(self):
-    return map(lambda rel: self.serialize_relationship_entry(rel), gdb.relationships.all())
+    rels = gdb.relationships.filter(Q('type',iexact='AuthoredBy'))
+    return map(lambda rel: self.serialize_relationship_entry(rel), rels)
 
 
 ########
