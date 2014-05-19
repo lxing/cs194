@@ -19,6 +19,14 @@
    type="button"
    value="Force"
    onclick="forceToggle()"/>
+  <input name="authorSliceButton"
+    type="button"
+    value="AuthorSlice"
+    onclick="sliceByAuthor()"/>
+  <input name="cosineSimilarSliceButton"
+    type="button"
+    value="CosineSimilarSlice"
+    onclick="sliceByCosineSimilarity()"/>
 </div>
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="http://code.jquery.com/jquery-latest.min.js"
@@ -32,7 +40,7 @@ var color = d3.scale.category20();
 
 var force = d3.layout.force()
     .charge(-120)
-    .linkDistance(60)
+    .linkDistance(120)
     .size([width, height]);
 
 d3.selection.prototype.moveToFront = function() {
@@ -44,23 +52,49 @@ d3.selection.prototype.moveToFront = function() {
 var contextMenuShowing = false;
 var selectedNode = null;
 
-var svg = d3.select("body").append("svg")
+var svg = d3.select("body").append("div")
+    .attr("id", "graph")
+    .style("float", "left")
+    .style("width", width + "px")
+      .append("svg")
+        .attr("width", width)
+        .attr("height", height)
+        .attr("clip-path", "url(#clip")
+        .call(d3.behavior.zoom().scaleExtent([-8, 8])
+        .on("zoom", zoom))
+        .on("dblclick.zoom", null);
+
+var text = d3.select("body").append("div")
+    .attr("id", "text")
+    .style("float", "right")
+    .style("width", width + "px")
+
+svg.append("rect")
     .attr("width", width)
     .attr("height", height)
-    .attr("clip-path", "url(#clip")
-    .call(d3.behavior.zoom().scaleExtent([-8, 8])
-    .on("zoom", zoom))
-    .on("dblclick.zoom", null);
+    .attr("class", "overlay")
+    .style("fill", "blue")
+    .style("fill-opacity", 0)
+    .style("stroke", "black")
+    .style("stroke-width", 2)
+    .style("stroke-opacity", .7);
 
 var innerSvg = svg.append("g");
 
+var authorSlice;
+var cosineSimlaritySlice;
 $.get("http://localhost:5000/authors", function(authors) {
   $.get("http://localhost:5000/documents", function(documents) {
     $.get("http://localhost:5000/relationships/AuthoredBy", function(authoredBy) {
       $.get("http://localhost:5000/relationships/SimilarTo", function(similarTo) {
-        graph = createAuthoredByLinks(authors, documents, authoredBy);
-        test = createSimilarToLinks(documents, similarTo);
-        loadVisualization(test[0], test[1]);
+        // console.log(documents);
+        // var i=0;
+        // for(;i<documents.length; ++i) {
+        //   console.log(Object.keys(documents[i]));
+        // }
+        authorSlice = createAuthoredByLinks(authors, documents, authoredBy);
+        cosineSimlaritySlice = createSimilarToLinks(documents, similarTo);
+        loadVisualization(authorSlice[0], authorSlice[1]);
       })
     })
   })
@@ -109,16 +143,12 @@ function createSimilarToLinks(documents, relationships) {
   }
 
   var links = [];
-  console.log(relationships.length);
   for (i=0; i<relationships.length; ++i) {
     var relation = relationships[i];
     sourceIndex = documentIndices[relation.start];
     targetIndex = documentIndices[relation.end];
 
-    var weight = relation.weight * 100;
-    weight = (weight * weight) / 100;
-    console.log(relation.weight);
-    // if (weight < 1) weight = 1;
+    var weight = relation.weight;
 
     links.push( {
       source: sourceIndex,
@@ -175,19 +205,26 @@ function loadVisualization(authors, links) {
 
             mousePosition = [d3.event.x, d3.event.y];
             foreignObj = d3.select(this).append("foreignObject")
-                .attr("width", 240)
-                .attr("height", 500);
+                .attr("width", 300)
+                .attr("height", 600);
             foreignObj.moveToFront();
 
             popup = foreignObj.append("xhtml:div")
                 .attr("class", "popup")
                 .style("background-color", "azure")
-            popup.append("h2").text(d.name);
-            popup.append("p").text(d.name)
-            popup.append("p")
+            var keys = Object.keys(d);
+            for (var i=0; i<keys.length; ++i) {
+              var key = keys[i];
+              if (key!="uuid" && key!="index" && key!="weight" &&
+                  key!="x" && key!="y" && key!="px" && key!="py" && key!="body" &&
+                  key!="fixed") {
+                popup.append("p")
                 .append("a")
-                .attr("href",d.name)
-                .text(d.name); 
+                .attr("href", key)
+                .text(keys[i] + ": " + d[key]); 
+              }
+            }
+
             form = popup.append("form");
             form.append("input")
                 .attr("type", "text")
@@ -223,22 +260,22 @@ function loadVisualization(authors, links) {
     });
 });
 
-function dblclick(d) {
-  d3.select(this)
-    .classed("fixed", d.fixed = false)
-    .attr("r", 5);
-}
+  function dblclick(d) {
+    d3.select(this)
+      .classed("fixed", d.fixed = false)
+      .attr("r", 5);
+  }
 
-function dragstart(d) {
-  zoomBool = false;
-  d3.select(this)
-      .classed("fixed", d.fixed = true)
-      .attr("r", 8);
-}
+  function dragstart(d) {
+    zoomBool = false;
+    d3.select(this)
+        .classed("fixed", d.fixed = true)
+        .attr("r", 8);
+  }
 
-function dragend(d) {
-  zoomBool = true;
-}
+  function dragend(d) {
+    zoomBool = true;
+  }
 }
 
 var forceBool = true;
@@ -250,6 +287,22 @@ function forceToggle() {
     force.stop();  
     forceBool = true;
   }
+}
+
+function sliceByAuthor() {
+  console.log("slice by author");
+  console.log(authorSlice);
+  innerSvg.remove();
+  innerSvg = svg.append("g");
+  loadVisualization(authorSlice[0], authorSlice[1]);
+}
+
+function sliceByCosineSimilarity() {
+  console.log("slice by cosine similarity");
+  console.log(cosineSimlaritySlice);
+  innerSvg.remove();
+  innerSvg = svg.append("g");
+  loadVisualization(cosineSimlaritySlice[0], cosineSimlaritySlice[1]);
 }
 
 var zoomBool = true;
