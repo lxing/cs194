@@ -25,8 +25,8 @@
         type="text/javascript"></script>
 <script>
 
-var width = 1600,
-    height = 1200;
+var width = 800,
+    height = 600;
 
 var color = d3.scale.category20();
 
@@ -47,15 +47,21 @@ var selectedNode = null;
 var svg = d3.select("body").append("svg")
     .attr("width", width)
     .attr("height", height)
-    .call(d3.behavior.zoom().scaleExtent([-8, 8]).on("zoom", zoom));
+    .attr("clip-path", "url(#clip")
+    .call(d3.behavior.zoom().scaleExtent([-8, 8])
+    .on("zoom", zoom))
+    .on("dblclick.zoom", null);
+
+var innerSvg = svg.append("g");
 
 $.get("http://localhost:5000/authors", function(authors) {
   $.get("http://localhost:5000/documents", function(documents) {
-    $.get("http://localhost:5000/relationships", function(relationships) {
-      console.log(authors);
-      console.log(documents);
-      graph = createAuthoredByLinks(authors, documents, relationships);
-      loadVisualization(graph[0], graph[1]);
+    $.get("http://localhost:5000/relationships/AuthoredBy", function(authoredBy) {
+      $.get("http://localhost:5000/relationships/SimilarTo", function(similarTo) {
+        graph = createAuthoredByLinks(authors, documents, authoredBy);
+        test = createSimilarToLinks(documents, similarTo);
+        loadVisualization(test[0], test[1]);
+      })
     })
   })
 });
@@ -92,6 +98,36 @@ function createAuthoredByLinks(authors, documents, relationships) {
   return [nodes, links];
 }
 
+function createSimilarToLinks(documents, relationships) {
+  var i = 0;
+  var nodes = [];
+  var documentIndices = {};
+  for (j=0; j<documents.length; ++j) {
+    doc = documents[j];
+    documentIndices[doc["uuid"]] = i+j;
+    nodes.push(doc);
+  }
+
+  var links = [];
+  console.log(relationships.length);
+  for (i=0; i<relationships.length; ++i) {
+    var relation = relationships[i];
+    sourceIndex = documentIndices[relation.start];
+    targetIndex = documentIndices[relation.end];
+
+    var weight = relation.weight * 100;
+    weight = (weight * weight) / 100;
+    console.log(relation.weight);
+    // if (weight < 1) weight = 1;
+
+    links.push( {
+      source: sourceIndex,
+      target: targetIndex,
+      weight: weight
+    });
+  }
+  return [nodes, links];
+}
 // loadVisualization();
 function loadVisualization(authors, links) {
   force.nodes(authors)
@@ -99,18 +135,19 @@ function loadVisualization(authors, links) {
        .start();
 
   var drag = force.drag()
-      .on("dragstart", dragstart);
+      .on("dragstart", dragstart)
+      .on("dragend", dragend);
 
-  var link = svg.selectAll(".link")
+  var link = innerSvg.selectAll("g.link")
       .data(links)
       .enter().append("line")
       .attr("class", "link")
       .style("stroke-width", function(d) { return Math.sqrt(d.weight); });
 
-  var gnodes = svg.selectAll('g.gnode')
+  var gnodes = innerSvg.selectAll('g.gnode')
     .data(authors);
 
-  var nodeEnter = gnodes.enter().append("g")
+  var enterNode = gnodes.enter().append("g")
     .classed('gnode', true)
     .on("mouseover", function(d){
           if (d.type == "author") {
@@ -166,7 +203,6 @@ function loadVisualization(authors, links) {
   var node = gnodes.append("circle")
       .attr("class", "node")
       .attr("r", 5)
-      .attr("transform", function(d) { return "translate(" + d + ")"; })
       .style("fill", function(d) {
         if (d.type == "author") {
           return "#99CCFF";
@@ -176,53 +212,58 @@ function loadVisualization(authors, links) {
       .on("dblclick", dblclick)
       .call(drag);
   
-    force.on("tick", function() {
-      link.attr("x1", function(d) { return d.source.x; })
-          .attr("y1", function(d) { return d.source.y; })
-          .attr("x2", function(d) { return d.target.x; })
-          .attr("y2", function(d) { return d.target.y; });
+  force.on("tick", function() {
+    link.attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; });
 
-      gnodes.attr("transform", function(d) { 
-          return 'translate(' + [d.x, d.y] + ')';
-      });
+    gnodes.attr("transform", function(d) { 
+        return 'translate(' + [d.x, d.y] + ')';
     });
+});
 
-  function dblclick(d) {
-    d3.select(this)
-      .classed("fixed", d.fixed = false)
-      .attr("r", 5);
-  }
+function dblclick(d) {
+  d3.select(this)
+    .classed("fixed", d.fixed = false)
+    .attr("r", 5);
+}
 
-  function dragstart(d) {
-    d3.select(this)
-        .classed("fixed", d.fixed = true)
-        .attr("r", 8);
-  }
+function dragstart(d) {
+  zoomBool = false;
+  d3.select(this)
+      .classed("fixed", d.fixed = true)
+      .attr("r", 8);
+}
 
-  function zoom() {
-    //apply the transform to the g element
-    innerSvg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+function dragend(d) {
+  zoomBool = true;
+}
+}
+
+var forceBool = true;
+function forceToggle() {
+  if (forceBool == true) {
+    force.start();
+    forceBool = false;
+  } else {
+    force.stop();  
+    forceBool = true;
   }
 }
 
+var zoomBool = true;
+function zoom() {
+  if (!zoomBool) return;
+  var innerSvg = svg.selectAll("g");
+  var link = svg.selectAll(".link");
+  var gnodes = svg.selectAll(".node");
+  innerSvg.attr("transform", "translate(" + d3.event.translate + ")scale(" + d3.event.scale + ")");
+  force.start();
+}
 
-// d3.select("body").on('contextmenu',function (d,i) {
-
-// });
-
-  var forceBool = true;
-  function forceToggle() {
-    if (forceBool == true) {
-      force.start()
-      forceBool = false;
-    } else {
-      force.stop();  
-      forceBool = true;
-    }
-  }
-
-  function updateNode() {
-    selectedNode.name = "ROGER HAU";
-  }
+function updateNode() {
+  selectedNode.name = "ROGER HAU";
+}
 
 </script>
