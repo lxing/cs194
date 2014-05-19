@@ -61,7 +61,7 @@ class Document(Resource):
     doc_node['uuid'] = document_id
     doc_node['title'] = request.form['title']
     doc_node['url'] = request.form['url']
-    doc_node['body'] = request.form['title'] # Change to body later
+    doc_node['body'] = request.form['body'] # Change to body later
 
 class DocumentList(Resource):
   def get(self):
