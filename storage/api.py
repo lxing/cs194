@@ -104,8 +104,8 @@ class RelationshipList(Resource):
     return dict(rel.properties.items() + endpoints.items())
 
   # TODO: figure out how to filter by built-in type
-  def get(self):
-    rels = gdb.relationships.filter(Q('type',iexact='AuthoredBy'))
+  def get(self, rel_type):
+    rels = gdb.relationships.filter(Q('type',iexact=rel_type))
     return map(lambda rel: self.serialize_relationship_entry(rel), rels)
 
 
@@ -120,7 +120,7 @@ api.add_resource(Entity, '/entities/<string:entity_id>')
 api.add_resource(EntityList, '/entities')
 
 api.add_resource(AuthoredBy, '/documents/<string:document_id>/authors/<string:author_id>')
-api.add_resource(RelationshipList, '/relationships')
+api.add_resource(RelationshipList, '/relationships/<string:rel_type>')
 
 if __name__ == '__main__':
     app.run(debug=True)
