@@ -27,12 +27,13 @@
     type="button"
     value="CosineSimilarSlice"
     onclick="sliceByCosineSimilarity()"/>
-  <form>
+  <form onkeypress="return event.keyCode != 13;">
     <input name="textSearchBox"
            type="text">
     <input type="button"
            value="Search"
-           onclick="searchByText(this.form)">
+           onclick="searchByText(this.form)"
+           onkeypress="searchByText(this.form)">
   </form>
 </div>
 <script src="http://d3js.org/d3.v3.min.js"></script>
@@ -317,16 +318,12 @@ function forceToggle() {
 }
 
 function sliceByAuthor() {
-  console.log("slice by author");
-  console.log(authorSlice);
   innerSvg.remove();
   innerSvg = svg.append("g");
   loadVisualization(authorSlice[0], authorSlice[1]);
 }
 
 function sliceByCosineSimilarity() {
-  console.log("slice by cosine similarity");
-  console.log(cosineSimlaritySlice);
   innerSvg.remove();
   innerSvg = svg.append("g");
   loadVisualization(cosineSimlaritySlice[0], cosineSimlaritySlice[1]);
@@ -335,7 +332,6 @@ function sliceByCosineSimilarity() {
 function searchByText(form) {
   var queryText = form.textSearchBox.value;
   var gnodes = svg.selectAll("g.gnode");
-  console.log(gnodes);
 
   for (var j=0; j<gnodes.length; j++) {
     gnodesArr = gnodes[j];
@@ -351,8 +347,6 @@ function searchByText(form) {
           var gnodeAttrKeys = Object.keys(gnodeAttrs);
           for (var d=0; d<gnodeAttrKeys.length; d++) {
             var gnodeAttrKey = gnodeAttrKeys[d];
-            console.log(gnodeAttrKey);
-            console.log(gnodeAttrs[gnodeAttrKey]);
             var searchText = gnodeAttrs[gnodeAttrKey] + "";
             if (searchText.indexOf(queryText) > -1) {
               d3.select(gnode).select("circle")
