@@ -27,6 +27,13 @@
     type="button"
     value="CosineSimilarSlice"
     onclick="sliceByCosineSimilarity()"/>
+  <form>
+    <input name="textSearchBox"
+           type="text">
+    <input type="button"
+           value="Search"
+           onclick="searchByText(this.form)">
+  </form>
 </div>
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="http://code.jquery.com/jquery-latest.min.js"
@@ -68,10 +75,6 @@ var text = d3.select("body").append("div")
     .attr("id", "text")
     .style("float", "right")
     .style("width", width + "px");
-      // .append("svg")
-      //   .attr("width", width)
-      //   .attr("height", height)
-      //   .attr("clip-path", "url(#clip");
 
 svg.append("rect")
     .attr("width", width)
@@ -102,8 +105,6 @@ var innerText = text.append("g")
       .style("width", width + "px")
       .style("height", height + "px")
       .text("Roger");;
-
-innerText
 
 var authorSlice;
 var cosineSimlaritySlice;
@@ -183,8 +184,8 @@ function createSimilarToLinks(documents, relationships) {
   return [nodes, links];
 }
 // loadVisualization();
-function loadVisualization(authors, links) {
-  force.nodes(authors)
+function loadVisualization(nodes, links) {
+  force.nodes(nodes)
        .links(links)
        .start();
 
@@ -199,7 +200,7 @@ function loadVisualization(authors, links) {
       .style("stroke-width", function(d) { return Math.sqrt(d.weight); });
 
   var gnodes = innerSvg.selectAll('g.gnode')
-    .data(authors);
+    .data(nodes);
 
   var enterNode = gnodes.enter().append("g")
     .classed('gnode', true)
@@ -329,6 +330,43 @@ function sliceByCosineSimilarity() {
   innerSvg.remove();
   innerSvg = svg.append("g");
   loadVisualization(cosineSimlaritySlice[0], cosineSimlaritySlice[1]);
+}
+
+function searchByText(form) {
+  var queryText = form.textSearchBox.value;
+  var gnodes = svg.selectAll("g.gnode");
+  console.log(gnodes);
+
+  for (var j=0; j<gnodes.length; j++) {
+    gnodesArr = gnodes[j];
+    var gindexes = Object.keys(gnodesArr);
+    for (var i=0; i<gindexes.length; ++i) {
+      var gindex = gindexes[i];
+      var gnode = gnodesArr[gindex];
+      var gnodeKeys = Object.keys(gnode);
+      for (var k=0; k<gnodeKeys.length; k++) {
+        var key = gnodeKeys[k];
+        if (key == "__data__") {
+          var gnodeAttrs = gnode[key];
+          var gnodeAttrKeys = Object.keys(gnodeAttrs);
+          for (var d=0; d<gnodeAttrKeys.length; d++) {
+            var gnodeAttrKey = gnodeAttrKeys[d];
+            console.log(gnodeAttrKey);
+            console.log(gnodeAttrs[gnodeAttrKey]);
+            var searchText = gnodeAttrs[gnodeAttrKey] + "";
+            if (searchText.indexOf(queryText) > -1) {
+              d3.select(gnode).select("circle")
+                .style("fill", function(d) {
+                  return "RED";
+                });
+            }
+          }
+        }
+      }
+    }
+  }
+
+
 }
 
 var zoomBool = true;
