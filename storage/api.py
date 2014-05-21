@@ -4,15 +4,21 @@ from flask.ext.restful import reqparse, abort, Api, Resource
 from neo4jrestclient.client import GraphDatabase
 from neo4jrestclient.query import Q
 
+#from index import *
 
 app = Flask(__name__)
 api = Api(app)
 gdb = GraphDatabase('http://localhost:7474/db/data/')
 
+# idx = None
+# if 'idx' in gdb.nodes.indexes.keys():
+#   idx = gdb.nodes.indexes.get('idx')
+# else:
+#   idx = gdb.nodes.indexes.create('idx',type='fulltext',provider='lucene')
+
 #####################
 # Utility Functions #
 #####################
-
 def get_by_type_and_uuid(type, uuid):
   nodes = gdb.nodes.filter(Q('type',iexact=type) & Q('uuid',iexact=uuid))
   if len(nodes) == 0:
@@ -24,9 +30,20 @@ def abort_if_duplicate(type, uuid):
     abort(403, message="Node '{}' already exists".format(uuid))
 
 def abort_if_missing_fields(form, fields):
+  print form
   for field in fields:
     if field not in form:
       abort(400, message="Missing '{}' field".format(field))
+
+def serialize_node(node):
+  if node['type'] == 'author':
+    return node.properties
+  elif node['type'] == 'document':
+    node_serialized = node.properties
+    del node_serialized['body']
+    return node_serialized
+  elif node['type'] == 'entity':
+    return node.properties
 
 
 ###############
@@ -34,7 +51,7 @@ def abort_if_missing_fields(form, fields):
 ###############
 class Author(Resource):
   def get(self, author_id):
-    get_by_type_and_uuid('author', author_id).properties
+    return get_by_type_and_uuid('author', author_id).properties
 
   def put(self, author_id):
     abort_if_duplicate('author', author_id)
@@ -44,33 +61,37 @@ class Author(Resource):
     author_node['uuid'] = author_id
     author_node['name'] = request.form['name']
 
+
 class AuthorList(Resource):
   def get(self):
     author_nodes = gdb.nodes.filter(Q('type', iexact='author'))
-    return map(lambda author_node: author_node.properties, author_nodes)
+    return map(lambda author_node: serialize_node(author_node), author_nodes)
+
 
 class Document(Resource):
   def get(self, document_id):
-    get_by_type_and_uuid('document', document_id).properties
+    return serialize_node(get_by_type_and_uuid('document', document_id))
 
   def put(self, document_id):
     abort_if_duplicate('document', document_id)
-    abort_if_missing_fields(request.form, ['title', 'url']) # Add body
+    abort_if_missing_fields(request.form, ['title', 'url', 'body']) # Add body
 
     doc_node = gdb.nodes.create(type='document')
     doc_node['uuid'] = document_id
     doc_node['title'] = request.form['title']
     doc_node['url'] = request.form['url']
-    doc_node['body'] = request.form['body'] # Change to body later
+    doc_node['body'] = request.form['body']
+
 
 class DocumentList(Resource):
   def get(self):
     doc_nodes = gdb.nodes.filter(Q('type', iexact='document'))
-    return map(lambda doc_node: doc_node.properties, doc_nodes)
+    return map(lambda doc_node: serialize_node(doc_node), doc_nodes)
+
 
 class Entity(Resource):
   def get(self, entity_id):
-    get_by_type_and_uuid('entity', entity_id).properties
+    return serialize_node(get_by_type_and_uuid('entity', entity_id))
 
   def put(self, entity_id):
     abort_if_duplicate('entity', entity_id)
@@ -80,10 +101,12 @@ class Entity(Resource):
     entity_node['uuid'] = entity_id
     entity_node['name'] = request.form['name']
 
+
 class EntityList(Resource):
   def get(self):
     entity_nodes = gdb.nodes.filter(Q('type', iexact='entity'))
-    return map(lambda entity_node: entity_node.properties, entity_nodes)
+    return map(lambda entity_node: serialize_node(entity_node), entity_nodes)
+
 
 
 class AuthoredBy(Resource):
@@ -99,14 +122,25 @@ class HasEntity(Resource):
     doc_node.relationships.create('HasEntity', entity_node, type='HasEntity')
 
 class RelationshipList(Resource):
-  def serialize_relationship_entry(self, rel):
+  def serialize_relationship(self, rel):
     endpoints = {'start': rel.start['uuid'], 'end': rel.end['uuid']}
     return dict(rel.properties.items() + endpoints.items())
 
   # TODO: figure out how to filter by built-in type
   def get(self, rel_type):
     rels = gdb.relationships.filter(Q('type',iexact=rel_type))
-    return map(lambda rel: self.serialize_relationship_entry(rel), rels)
+    return map(lambda rel: self.serialize_relationship(rel), rels)
+
+
+class Search(Resource):
+  def get(self):
+    abort_if_missing_fields(request.form, ['query'])
+    query = request.form['query']
+    results = gdb.nodes.filter(
+      Q('title',icontains=query)|
+      Q('body',icontains=query)|
+      Q('name',icontains=query))
+    return map(lambda node: serialize_node(node), results)
 
 
 ########
@@ -120,7 +154,10 @@ api.add_resource(Entity, '/entities/<string:entity_id>')
 api.add_resource(EntityList, '/entities')
 
 api.add_resource(AuthoredBy, '/documents/<string:document_id>/authors/<string:author_id>')
+api.add_resource(HasEntity, '/documents/<string:document_id>/entities/<string:entity_id>')
 api.add_resource(RelationshipList, '/relationships/<string:rel_type>')
+
+api.add_resource(Search, '/search')
 
 if __name__ == '__main__':
     app.run(debug=True)
