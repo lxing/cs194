@@ -30,7 +30,6 @@ def abort_if_duplicate(type, uuid):
     abort(403, message="Node '{}' already exists".format(uuid))
 
 def abort_if_missing_fields(form, fields):
-  print form
   for field in fields:
     if field not in form:
       abort(400, message="Missing '{}' field".format(field))
@@ -134,8 +133,8 @@ class RelationshipList(Resource):
 
 class Search(Resource):
   def get(self):
-    abort_if_missing_fields(request.form, ['query'])
-    query = request.form['query']
+    abort_if_missing_fields(request.args, ['query'])
+    query = request.args['query']
     results = gdb.nodes.filter(
       Q('title',icontains=query)|
       Q('body',icontains=query)|
