@@ -184,7 +184,10 @@ function createSimilarToLinks(documents, relationships) {
   }
   return [nodes, links];
 }
-// loadVisualization();
+
+// need a map of uuid to the nodes
+var uuidToNode = {};
+
 function loadVisualization(nodes, links) {
   force.nodes(nodes)
        .links(links)
@@ -332,6 +335,11 @@ function sliceByCosineSimilarity() {
 function searchByText(form) {
   var queryText = form.textSearchBox.value;
   var gnodes = svg.selectAll("g.gnode");
+  $.get("http://localhost:5000/search",
+        {"query":queryText}).done(function(queryResults) {
+          console.log(queryResults);
+        });
+  
 
   for (var j=0; j<gnodes.length; j++) {
     gnodesArr = gnodes[j];
