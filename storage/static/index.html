@@ -35,6 +35,10 @@
            onclick="searchByText(this.form)"
            onkeypress="searchByText(this.form)">
   </form>
+  <input name="filterByWorkingSet"
+    type="button"
+    value="Filter"
+    onclick="filterByWorkingSet()"/>
 </div>
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="http://code.jquery.com/jquery-latest.min.js"
@@ -107,17 +111,31 @@ var innerText = text.append("g")
       .style("height", height + "px")
       .text("Roger");;
 
+// need a map of uuid to the nodes
+var uuidToNode = {};
+var allLinks = {};
+var workingSet = {};
+
+var authors_;
+var documents_;
+var authoredBy_;
+var similarTo_;
+
 var authorSlice;
 var cosineSimlaritySlice;
 $.get("http://localhost:5000/authors", function(authors) {
   $.get("http://localhost:5000/documents", function(documents) {
     $.get("http://localhost:5000/relationships/AuthoredBy", function(authoredBy) {
       $.get("http://localhost:5000/relationships/SimilarTo", function(similarTo) {
-        // console.log(documents);
-        // var i=0;
-        // for(;i<documents.length; ++i) {
-        //   console.log(Object.keys(documents[i]));
-        // }
+        console.log(authors);
+        console.log(documents);
+        // console.log(authoredBy);
+
+        authors_ = authors;
+        documents_ = documents;
+        authoredBy_ = authoredBy;
+        similarTo_ = similarTo;
+
         authorSlice = createAuthoredByLinks(authors, documents, authoredBy);
         cosineSimlaritySlice = createSimilarToLinks(documents, similarTo);
         loadVisualization(authorSlice[0], authorSlice[1]);
@@ -133,6 +151,7 @@ function createAuthoredByLinks(authors, documents, relationships) {
   for (; i<authors.length; ++i) {
     author = authors[i];
     authorIndices[author["uuid"]] = i;
+    author["group"] = 2;
     nodes.push(author);
   }
 
@@ -140,20 +159,29 @@ function createAuthoredByLinks(authors, documents, relationships) {
   for (j=0; j<documents.length; ++j) {
     doc = documents[j];
     documentIndices[doc["uuid"]] = i+j;
+    doc["group"] = 1;
     nodes.push(doc);
   }
 
   var links = [];
   for (i=0; i<relationships.length; ++i) {
     var relation = relationships[i];
-    sourceIndex = documentIndices[relation.start];
-    targetIndex = authorIndices[relation.end];
+    if (relation.start in documentIndices && relation.end in authorIndices) {
+      sourceIndex = documentIndices[relation.start];
+      targetIndex = authorIndices[relation.end];
 
-    links.push( {
-      source: sourceIndex,
-      target: targetIndex,
-      weight: 5
-    });
+      var link = {
+        source: sourceIndex,
+        target: targetIndex,
+        weight: 5
+      };
+      links.push( link );
+      if ("AuthoredBy" in allLinks) {
+        allLinks["AuthoredBy"].push(link);
+      } else {
+        allLinks["AuthoredBy"] = [link]
+      }
+    }
   }
   return [nodes, links];
 }
@@ -165,6 +193,7 @@ function createSimilarToLinks(documents, relationships) {
   for (j=0; j<documents.length; ++j) {
     doc = documents[j];
     documentIndices[doc["uuid"]] = i+j;
+    doc["group"] = 1;
     nodes.push(doc);
   }
 
@@ -176,17 +205,20 @@ function createSimilarToLinks(documents, relationships) {
 
     var weight = relation.weight;
 
-    links.push( {
+    var link = {
       source: sourceIndex,
       target: targetIndex,
       weight: weight
-    });
+    };
+    links.push( link );
+    if ("SimilarTo" in allLinks) {
+      allLinks["SimilarTo"].push(link);
+    } else {
+      allLinks["SimilarTo"] = [link];
+    }
   }
   return [nodes, links];
 }
-
-// need a map of uuid to the nodes
-var uuidToNode = {};
 
 function loadVisualization(nodes, links) {
   force.nodes(nodes)
@@ -272,9 +304,6 @@ function loadVisualization(nodes, links) {
       .attr("class", "node")
       .attr("r", 5)
       .style("fill", function(d) {
-        if (d.type == "author") {
-          return "#99CCFF";
-        }
         return color(d.group);
       })
       .on("dblclick", dblclick)
@@ -289,7 +318,7 @@ function loadVisualization(nodes, links) {
     gnodes.attr("transform", function(d) { 
         return 'translate(' + [d.x, d.y] + ')';
     });
-});
+  });
 
   function dblclick(d) {
     d3.select(this)
@@ -307,6 +336,8 @@ function loadVisualization(nodes, links) {
   function dragend(d) {
     zoomBool = true;
   }
+
+  populateUuidNodeMap();
 }
 
 var forceBool = true;
@@ -333,42 +364,129 @@ function sliceByCosineSimilarity() {
 }
 
 function searchByText(form) {
+  for (var key in workingSet) {
+    nodes = workingSet[key];
+    for (var i in nodes) {
+      node = nodes[i];
+      d3.select(node).select("circle")
+        .style("fill", function(d) { return color(d.group); });
+    }
+  }
+  workingSet = {};
+
+  // console.log(uuidToNode);
   var queryText = form.textSearchBox.value;
   var gnodes = svg.selectAll("g.gnode");
-  $.get("http://localhost:5000/search",
-        {"query":queryText}).done(function(queryResults) {
-          console.log(queryResults);
-        });
-  
+  $.get("http://localhost:5000/search", {"query":queryText})
+   .done(function(queryResults) {
+      console.log("queryResults", queryResults);
+      for (var i=0; i<queryResults.length; ++i) {
+        uuid = queryResults[i]["uuid"];
+        type = queryResults[i]["type"];
+        node = uuidToNode[uuid];
 
-  for (var j=0; j<gnodes.length; j++) {
-    gnodesArr = gnodes[j];
-    var gindexes = Object.keys(gnodesArr);
-    for (var i=0; i<gindexes.length; ++i) {
-      var gindex = gindexes[i];
-      var gnode = gnodesArr[gindex];
-      var gnodeKeys = Object.keys(gnode);
-      for (var k=0; k<gnodeKeys.length; k++) {
-        var key = gnodeKeys[k];
-        if (key == "__data__") {
-          var gnodeAttrs = gnode[key];
-          var gnodeAttrKeys = Object.keys(gnodeAttrs);
-          for (var d=0; d<gnodeAttrKeys.length; d++) {
-            var gnodeAttrKey = gnodeAttrKeys[d];
-            var searchText = gnodeAttrs[gnodeAttrKey] + "";
-            if (searchText.indexOf(queryText) > -1) {
-              d3.select(gnode).select("circle")
-                .style("fill", function(d) {
-                  return "RED";
-                });
-            }
-          }
-        }
+        if (!(type in workingSet)) workingSet[type] = {};
+        workingSet[type][uuid] = node;
+        
+        d3.select(node).select("circle")
+          .style("fill", function(d) { return "RED"; });
+      }
+      console.log(workingSet);
+  });
+}
+
+function filterByWorkingSet() {
+  // get all the edges with this node, and get all the nodes they connect to
+  console.log(uuidToNode);
+  console.log(workingSet);
+  workingNodes = {}
+  for (var type in workingSet) {
+    nodes = workingSet[type];
+    console.log("nodes", nodes);
+    for (var uuid in nodes) {
+      workingNodes[uuid] = nodes[uuid];
+    }
+  }
+
+  connectedToWorkingNode = {}
+  workingLinks = []
+  for (var key in allLinks) {
+    links = allLinks[key];
+    for (var i in links) {
+      link = links[i];
+      if (link.source["uuid"] in workingNodes) {
+        workingLinks.push(link);
+
+        node = uuidToNode[link.target["uuid"]];
+        connectedToWorkingNode[link.target["uuid"]] = node;
+      }
+      if (link.target["uuid"] in workingNodes) {
+        workingLinks.push(link);
+
+        node = uuidToNode[link.source["uuid"]];
+        connectedToWorkingNode[link.source["uuid"]] = node;
       }
     }
   }
 
+  console.log(connectedToWorkingNode);
+  for (var uuid in connectedToWorkingNode) {
+    node = uuidToNode[uuid];
+    nodeData = node["__data__"];
+    console.log(node);
+    console.log(nodeData);
+    console.log(nodeData["type"]);
+    if (!(nodeData["type"] in workingSet)) workingSet[nodeData["type"]] = {};
+    workingSet[nodeData["type"]][uuid] = node;
+  }
+  console.log(workingSet);
 
+  authors = [];
+  for (var uuid in workingSet["author"]) {
+    authors.push(workingSet["author"][uuid]["__data__"]);
+  }
+  documents = [];
+  for (var uuid in workingSet["document"]) {
+    documents.push(workingSet["document"][uuid]["__data__"]);
+  }
+
+
+  console.log(authors);
+  console.log(documents);
+
+  authorSlice = createAuthoredByLinks(authors, documents, authoredBy_);
+  cosineSimlaritySlice = createSimilarToLinks(documents, similarTo_);
+
+  console.log(authoredBy_);
+  console.log(similarTo_);
+  console.log(authorSlice);
+  console.log(cosineSimlaritySlice);
+
+  innerSvg.remove();
+  innerSvg = svg.append("g");
+  loadVisualization(authorSlice[0], authorSlice[1]);
+}
+
+function populateUuidNodeMap() {
+  var gnodes = svg.selectAll("g.gnode");
+  // console.log("populate");
+
+  // console.log(gnodes);
+  gnodesArr = gnodes[0];
+  var gindexes = Object.keys(gnodesArr);
+  for (var i=0; i<gindexes.length-1; i++) {
+    var gnode = gnodesArr[i];
+    var gnodeKeys = Object.keys(gnode);
+    var key = "__data__";
+    var gnodeAttrs = gnode[key];
+    var gnodeAttrKeys = Object.keys(gnodeAttrs);
+    // console.log(gnode);
+    // console.log(gnodeAttrs);
+    // console.log(gnodeAttrKeys);
+
+    uuidToNode[gnodeAttrs["uuid"]] = gnode;
+  }
+  console.log(uuidToNode);
 }
 
 var zoomBool = true;
