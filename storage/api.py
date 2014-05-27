@@ -39,7 +39,7 @@ def serialize_node(node):
     return node.properties
   elif node['type'] == 'document':
     node_serialized = node.properties
-    del node_serialized['body']
+    del node_serialized['abstract']
     return node_serialized
   elif node['type'] == 'entity':
     return node.properties
@@ -73,13 +73,13 @@ class Document(Resource):
 
   def put(self, document_id):
     abort_if_duplicate('document', document_id)
-    abort_if_missing_fields(request.form, ['title', 'url', 'body']) # Add body
+    abort_if_missing_fields(request.form, ['title', 'url', 'abstract']) # Add abstract
 
     doc_node = gdb.nodes.create(type='document')
     doc_node['uuid'] = document_id
     doc_node['title'] = request.form['title']
     doc_node['url'] = request.form['url']
-    doc_node['body'] = request.form['body']
+    doc_node['abstract'] = request.form['abstract']
 
 
 class DocumentList(Resource):
@@ -137,7 +137,7 @@ class Search(Resource):
     query = request.args['query']
     results = gdb.nodes.filter(
       Q('title',icontains=query)|
-      Q('body',icontains=query)|
+      Q('abstract',icontains=query)|
       Q('name',icontains=query))
     return map(lambda node: serialize_node(node), results)
 
