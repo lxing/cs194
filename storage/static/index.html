@@ -35,6 +35,10 @@
            onclick="searchByText(this.form)"
            onkeypress="searchByText(this.form)">
   </form>
+  <input name="reset"
+    type="button"
+    value="Reset"
+    onclick="reset()"/>
   <input name="filterByWorkingSet"
     type="button"
     value="Filter"
@@ -461,6 +465,15 @@ function filterByWorkingSet() {
   console.log(similarTo_);
   console.log(authorSlice);
   console.log(cosineSimlaritySlice);
+
+  innerSvg.remove();
+  innerSvg = svg.append("g");
+  loadVisualization(authorSlice[0], authorSlice[1]);
+}
+
+function reset() {
+  authorSlice = createAuthoredByLinks(authors_, documents_, authoredBy_);
+  cosineSimlaritySlice = createSimilarToLinks(documents_, similarTo_);
 
   innerSvg.remove();
   innerSvg = svg.append("g");
