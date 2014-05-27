@@ -19,6 +19,10 @@
    type="button"
    value="Force"
    onclick="forceToggle()"/>
+  <input name="labelButton"
+   type="button"
+   value="Labels"
+   onclick="labelToggle()"/>
   <input name="authorSliceButton"
     type="button"
     value="AuthorSlice"
@@ -352,6 +356,22 @@ function forceToggle() {
   } else {
     force.stop();  
     forceBool = true;
+  }
+}
+
+var labelOn = false;
+function labelToggle() {
+  var gnodes = svg.selectAll("g.gnode");
+  if (labelOn == true) {
+    gnodes.select("text").remove();
+    labelOn = false;
+  } else {
+    gnodes.append("text")
+      .text(function(d) {
+        if (d.type == "author") { return d.name; }
+        if (d.type == "document") { return d.title; }
+      });
+    labelOn = true;
   }
 }
 
