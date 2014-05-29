@@ -48,7 +48,7 @@ def serialize_node(node):
   elif node['type'] == 'entity':
     return node.properties
 
-def serialize_relationship(self, rel):
+def serialize_relationship(rel):
     endpoints = {'start': rel.start['uuid'], 'end': rel.end['uuid']}
     return dict(rel.properties.items() + endpoints.items())
 
