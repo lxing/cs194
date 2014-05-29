@@ -132,7 +132,7 @@ class Cites(Resource):
   def put(self, source_id, dest_id):
     source_node = get_by_type_and_uuid('document', source_id)
     dest_node = get_by_type_and_uuid('document', dest_id)
-    source_node.relationships('Cites', dest_node, type='Cites')
+    source_node.relationships.create('Cites', dest_node, type='Cites')
 
 
 class RelationshipList(Resource):
