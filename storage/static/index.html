@@ -392,19 +392,15 @@ function loadVisualization(nodes, links) {
             popup = foreignObj.append("xhtml:div")
                 .attr("class", "popup")
                 .style("background-color", "azure")
-            var keys = Object.keys(d);
+            var keys = ["AuthoredBy", "SimilarTo", "HasEntity", "Cites"];
             for (var i=0; i<keys.length; ++i) {
               var key = keys[i];
-              if (key!="uuid" && key!="index" && key!="weight" &&
-                  key!="x" && key!="y" && key!="px" && key!="py" && key!="body" &&
-                  key!="fixed") {
+              console.log("searchAround(" + d["uuid"] + "," + "\""+keys[i]+"\")");
                 keyLink = popup.append("p").append("a");
                 keyLink
-                  .attr("onclick", "searchAround(\""+keys[i]+"\")")
+                  .attr("onclick", "searchAround(\"" + d["uuid"] + "\"," + "\""+keys[i]+"\")")
                   .attr("href", "#")
-                  .text(keys[i] + ": " + d[key]);
-                    
-              }
+                  .text(keys[i]);
             }
 
             innerText.text(d["body"]);
@@ -624,17 +620,17 @@ function createWorkingSetLinks(workingNodes, relationships) {
   var j = 0;
   var nodes = [];
   var nodeIndices = {};
-  console.log(workingNodes);
-  console.log(workingNodes.length);
+  // console.log(workingNodes);
+  // console.log(workingNodes.length);
   for (var uuid in workingNodes) {
     var node = workingNodes[uuid]["__data__"];
-    console.log(uuid, node);
+    // console.log(uuid, node);
     nodeIndices[uuid] = i+j;
     nodes.push(node);
     j++;
   }
-  console.log(nodeIndices);
-  console.log(relationships);
+  // console.log(nodeIndices);
+  // console.log(relationships);
   var links = [];
   for (i=0; i<relationships.length; ++i) {
     var relation = relationships[i];
@@ -656,7 +652,7 @@ function createWorkingSetLinks(workingNodes, relationships) {
       links.push( link );
     }
   }
-  console.log(nodes, links);
+  // console.log(nodes, links);
   return [nodes, links];
 }
 
@@ -664,15 +660,21 @@ function createWorkingSetLinks(workingNodes, relationships) {
 function reset() {
   authorSlice = createAuthoredByLinks(authors_, documents_, authoredBy_);
   cosineSimlaritySlice = createSimilarToLinks(documents_, similarTo_);
+  entitySlice = createEntityLinks(documents_, entities_, hasEntity_);
+  citeSlice = createCitesLinks(documents_, cites_);
+
 
   innerSvg.remove();
   innerSvg = svg.append("g");
   loadVisualization(authorSlice[0], authorSlice[1]);
 }
 
-function searchAround(key) {
-  console.log("search Around " + key);
+function searchAround(uuid, key) {
+  console.log(uuid, key);
 
+  $.get("http://localhost:5000/searchAround/"+uuid+"/"+key, function(queryResults) {
+    console.log(queryResults);
+  });
 }
 
 function populateUuidNodeMap() {
