@@ -10,6 +10,10 @@ app = Flask(__name__)
 api = Api(app)
 gdb = GraphDatabase('http://localhost:7474/db/data/')
 
+# The dumbest cache ever. Preload relationships permanently
+rel_cache = {}
+
+
 # idx = None
 # if 'idx' in gdb.nodes.indexes.keys():
 #   idx = gdb.nodes.indexes.get('idx')
@@ -39,10 +43,14 @@ def serialize_node(node):
     return node.properties
   elif node['type'] == 'document':
     node_serialized = node.properties
-    del node_serialized['body']
+    del node_serialized['abstract']
     return node_serialized
   elif node['type'] == 'entity':
     return node.properties
+
+def serialize_relationship(self, rel):
+    endpoints = {'start': rel.start['uuid'], 'end': rel.end['uuid']}
+    return dict(rel.properties.items() + endpoints.items())
 
 
 ###############
@@ -68,18 +76,18 @@ class AuthorList(Resource):
 
 
 class Document(Resource):
-  def get(self, document_id):
-    return serialize_node(get_by_type_and_uuid('document', document_id))
+  def get(self, doc_id):
+    return serialize_node(get_by_type_and_uuid('document', doc_id))
 
-  def put(self, document_id):
-    abort_if_duplicate('document', document_id)
-    abort_if_missing_fields(request.form, ['title', 'url', 'body']) # Add body
+  def put(self, doc_id):
+    abort_if_duplicate('document', doc_id)
+    abort_if_missing_fields(request.form, ['title', 'url', 'abstract']) # Add abstract
 
     doc_node = gdb.nodes.create(type='document')
-    doc_node['uuid'] = document_id
+    doc_node['uuid'] = doc_id
     doc_node['title'] = request.form['title']
     doc_node['url'] = request.form['url']
-    doc_node['body'] = request.form['body']
+    doc_node['abstract'] = request.form['abstract']
 
 
 class DocumentList(Resource):
@@ -109,26 +117,29 @@ class EntityList(Resource):
 
 
 class AuthoredBy(Resource):
-  def put(self, document_id, author_id):
-    doc_node = get_by_type_and_uuid('document', document_id)
+  def put(self, doc_id, author_id):
+    doc_node = get_by_type_and_uuid('document', doc_id)
     author_node = get_by_type_and_uuid('author', author_id)
     doc_node.relationships.create('AuthoredBy', author_node, type='AuthoredBy')
 
 class HasEntity(Resource):
-  def put(self, document_id, entity_id):
-    doc_node = get_by_type_and_uuid('document', document_id)
+  def put(self, doc_id, entity_id):
+    doc_node = get_by_type_and_uuid('document', doc_id)
     entity_node = get_by_type_and_uuid('entity', entity_id)
     doc_node.relationships.create('HasEntity', entity_node, type='HasEntity')
 
-class RelationshipList(Resource):
-  def serialize_relationship(self, rel):
-    endpoints = {'start': rel.start['uuid'], 'end': rel.end['uuid']}
-    return dict(rel.properties.items() + endpoints.items())
+class Cites(Resource):
+  def put(self, source_id, dest_id):
+    source_node = get_by_type_and_uuid('document', source_id)
+    dest_node = get_by_type_and_uuid('document', dest_id)
+    source_node.relationships('Cites', dest_node, type='Cites')
 
+
+class RelationshipList(Resource):
   # TODO: figure out how to filter by built-in type
   def get(self, rel_type):
     rels = gdb.relationships.filter(Q('type',iexact=rel_type))
-    return map(lambda rel: self.serialize_relationship(rel), rels)
+    return map(lambda rel: serialize_relationship(rel), rels)
 
 
 class Search(Resource):
@@ -137,9 +148,26 @@ class Search(Resource):
     query = request.args['query']
     results = gdb.nodes.filter(
       Q('title',icontains=query)|
-      Q('body',icontains=query)|
+      Q('abstract',icontains=query)|
       Q('name',icontains=query))
     return map(lambda node: serialize_node(node), results)
+
+# For now, only searcharound outgoing rels
+# Return both the relationships and the endpoint nodes
+class SearchAround(Resource):
+  def get(self, doc_id, rel_type):
+    doc_node = get_by_type_and_uuid('document', doc_id)
+    rels = doc_node.relationships.outgoing(types=[rel_type])
+
+    rels_serialized = map(lambda rel: serialize_relationship(rel), rels)
+    nodes_serialized = map(lambda rel: serialize_node(rel.end), rels)
+    return {
+      relationships: rels_serialized,
+      nodes: nodes_serialized
+    }
+
+
+
 
 
 ########
@@ -147,16 +175,18 @@ class Search(Resource):
 ########
 api.add_resource(Author, '/authors/<string:author_id>')
 api.add_resource(AuthorList, '/authors')
-api.add_resource(Document, '/documents/<string:document_id>')
+api.add_resource(Document, '/documents/<string:doc_id>')
 api.add_resource(DocumentList, '/documents')
 api.add_resource(Entity, '/entities/<string:entity_id>')
 api.add_resource(EntityList, '/entities')
 
-api.add_resource(AuthoredBy, '/documents/<string:document_id>/authors/<string:author_id>')
-api.add_resource(HasEntity, '/documents/<string:document_id>/entities/<string:entity_id>')
+api.add_resource(AuthoredBy, '/documents/<string:doc_id>/authors/<string:author_id>')
+api.add_resource(HasEntity, '/documents/<string:doc_id>/entities/<string:entity_id>')
+api.add_resource(Cites, '/documents/<string:source_id>/cites/<string:dest_id>')
 api.add_resource(RelationshipList, '/relationships/<string:rel_type>')
 
 api.add_resource(Search, '/search')
+api.add_resource(SearchAround, '/searchAround/<string:node_type>/<string:rel_type>/')
 
 if __name__ == '__main__':
     app.run(debug=True)
