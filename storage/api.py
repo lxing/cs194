@@ -43,12 +43,12 @@ def serialize_node(node):
     return node.properties
   elif node['type'] == 'document':
     node_serialized = node.properties
-    del node_serialized['abstract']
+    del node_serialized['body']
     return node_serialized
   elif node['type'] == 'entity':
     return node.properties
 
-def serialize_relationship(self, rel):
+def serialize_relationship(rel):
     endpoints = {'start': rel.start['uuid'], 'end': rel.end['uuid']}
     return dict(rel.properties.items() + endpoints.items())
 
@@ -81,13 +81,13 @@ class Document(Resource):
 
   def put(self, doc_id):
     abort_if_duplicate('document', doc_id)
-    abort_if_missing_fields(request.form, ['title', 'url', 'abstract']) # Add abstract
+    abort_if_missing_fields(request.form, ['title', 'url', 'body']) # Add body
 
     doc_node = gdb.nodes.create(type='document')
     doc_node['uuid'] = doc_id
     doc_node['title'] = request.form['title']
     doc_node['url'] = request.form['url']
-    doc_node['abstract'] = request.form['abstract']
+    doc_node['body'] = request.form['body']
 
 
 class DocumentList(Resource):
@@ -148,7 +148,7 @@ class Search(Resource):
     query = request.args['query']
     results = gdb.nodes.filter(
       Q('title',icontains=query)|
-      Q('abstract',icontains=query)|
+      Q('body',icontains=query)|
       Q('name',icontains=query))
     return map(lambda node: serialize_node(node), results)
 
