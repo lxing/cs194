@@ -338,6 +338,48 @@ function createCitesLinks(documents, relationships) {
   return [nodes, links];
 }
 
+function createWorkingSetLinks(workingNodes, relationships) {
+  var i = 0;
+  var j = 0;
+  var nodes = [];
+  var nodeIndices = {};
+  // console.log(workingNodes);
+  // console.log(workingNodes.length);
+  for (var uuid in workingNodes) {
+    var node = workingNodes[uuid]["__data__"];
+    // console.log(uuid, node);
+    nodeIndices[uuid] = i+j;
+    nodes.push(node);
+    j++;
+  }
+  // console.log(nodeIndices);
+  // console.log(relationships);
+  var links = [];
+  for (i=0; i<relationships.length; ++i) {
+    var relation = relationships[i];
+    if (relation.source["uuid"] in nodeIndices &&
+        relation.target["uuid"] in nodeIndices) {
+      sourceIndex = nodeIndices[relation.source["uuid"]];
+      targetIndex = nodeIndices[relation.target["uuid"]];
+
+      var weight = 5;
+      if (relation.weight != null) {
+        var weight = relation.weight;
+      }
+      
+      var link = {
+        source: sourceIndex,
+        target: targetIndex,
+        weight: weight
+      };
+      links.push( link );
+    }
+  }
+  // console.log(nodes, links);
+  return [nodes, links];
+}
+
+
 function loadVisualization(nodes, links) {
   force.nodes(nodes)
        .links(links)
@@ -615,48 +657,6 @@ function filterByWorkingSet() {
   loadVisualization(workingSetSlice[0], workingSetSlice[1]);
 }
 
-function createWorkingSetLinks(workingNodes, relationships) {
-  var i = 0;
-  var j = 0;
-  var nodes = [];
-  var nodeIndices = {};
-  // console.log(workingNodes);
-  // console.log(workingNodes.length);
-  for (var uuid in workingNodes) {
-    var node = workingNodes[uuid]["__data__"];
-    // console.log(uuid, node);
-    nodeIndices[uuid] = i+j;
-    nodes.push(node);
-    j++;
-  }
-  // console.log(nodeIndices);
-  // console.log(relationships);
-  var links = [];
-  for (i=0; i<relationships.length; ++i) {
-    var relation = relationships[i];
-    if (relation.source["uuid"] in nodeIndices &&
-        relation.target["uuid"] in nodeIndices) {
-      sourceIndex = nodeIndices[relation.source["uuid"]];
-      targetIndex = nodeIndices[relation.target["uuid"]];
-
-      var weight = 5;
-      if (relation.weight != null) {
-        var weight = relation.weight;
-      }
-      
-      var link = {
-        source: sourceIndex,
-        target: targetIndex,
-        weight: weight
-      };
-      links.push( link );
-    }
-  }
-  // console.log(nodes, links);
-  return [nodes, links];
-}
-
-
 function reset() {
   authorSlice = createAuthoredByLinks(authors_, documents_, authoredBy_);
   cosineSimlaritySlice = createSimilarToLinks(documents_, similarTo_);
@@ -693,15 +693,21 @@ function populateUuidNodeMap() {
     // console.log(gnode);
     // console.log(gnodeAttrs);
     // console.log(gnodeAttrKeys);
-
-    uuidToNode[gnodeAttrs["uuid"]] = gnode;
+    if ("uuid" in gnodeAttrs) {
+      uuidToNode[gnodeAttrs["uuid"]] = gnode;
+      // workingSet[gnodeAttrs["uuid"]] = gnode;
+    }
+    
   }
 
-  for (var node in entities_) {
-    // console.log(node);
+  for (var index in entities_) {
+    var node = entities_[index];
+    console.log(node);
+    console.log(node["uuid"]);
     uuidToNode[node["uuid"]] = node;
+    // workingSet[node["uuid"]] = node;
   }
-  // console.log(uuidToNode);
+  console.log(uuidToNode);
 }
 
 var zoomBool = true;

@@ -164,13 +164,9 @@ class SearchAround(Resource):
     rels_serialized = map(lambda rel: serialize_relationship(rel), rels)
     nodes_serialized = map(lambda rel: serialize_node(rel.end), rels)
     return {
-      relationships: rels_serialized,
-      nodes: nodes_serialized
+      "relationships": rels_serialized,
+      "nodes": nodes_serialized
     }
-
-
-
-
 
 ########
 # Main #
@@ -188,7 +184,7 @@ api.add_resource(Cites, '/documents/<string:source_id>/cites/<string:dest_id>')
 api.add_resource(RelationshipList, '/relationships/<string:rel_type>')
 
 api.add_resource(Search, '/search')
-api.add_resource(SearchAround, '/searchAround/<string:node_type>/<string:rel_type>/')
+api.add_resource(SearchAround, '/searchAround/<string:doc_id>/<string:rel_type>/')
 
 if __name__ == '__main__':
     app.run(debug=True)
