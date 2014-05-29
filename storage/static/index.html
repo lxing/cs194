@@ -31,6 +31,14 @@
     type="button"
     value="CosineSimilarSlice"
     onclick="sliceByCosineSimilarity()"/>
+  <input name="entitySliceButton"
+    type="button"
+    value="EntitySlice"
+    onclick="sliceByHasEntity()"/>
+  <input name="citationSliceButton"
+    type="button"
+    value="CitationSlice"
+    onclick="sliceByCites()"/>
   <form onkeypress="return event.keyCode != 13; ">
     <input name="textSearchBox"
            type="text">
@@ -126,27 +134,46 @@ var workingSet = {};
 
 var authors_;
 var documents_;
+var entities_;
+
 var authoredBy_;
 var similarTo_;
+var hasEntity_;
+var cites_;
 
 var authorSlice;
 var cosineSimlaritySlice;
+var entitySlice;
+var citeSlice;
+
 $.get("http://localhost:5000/authors", function(authors) {
   $.get("http://localhost:5000/documents", function(documents) {
-    $.get("http://localhost:5000/relationships/AuthoredBy", function(authoredBy) {
-      $.get("http://localhost:5000/relationships/SimilarTo", function(similarTo) {
-        console.log(authors);
-        console.log(documents);
-        // console.log(authoredBy);
+    $.get("http://localhost:5000/entities", function(entities) {
+      $.get("http://localhost:5000/relationships/AuthoredBy", function(authoredBy) {
+        $.get("http://localhost:5000/relationships/SimilarTo", function(similarTo) {
+          $.get("http://localhost:5000/relationships/HasEntity", function(hasEntity) {
+            $.get("http://localhost:5000/relationships/Cites", function(cites) {
+              console.log(authors);
+              console.log(documents);
+              console.log(entities);
+              console.log(cites);
 
-        authors_ = authors;
-        documents_ = documents;
-        authoredBy_ = authoredBy;
-        similarTo_ = similarTo;
+              authors_ = authors;
+              documents_ = documents;
+              entities_ = entities;
+              authoredBy_ = authoredBy;
+              similarTo_ = similarTo;
+              hasEntity_ = hasEntity;
+              cites_ = cites;
 
-        authorSlice = createAuthoredByLinks(authors, documents, authoredBy);
-        cosineSimlaritySlice = createSimilarToLinks(documents, similarTo);
-        loadVisualization(authorSlice[0], authorSlice[1]);
+              authorSlice = createAuthoredByLinks(authors, documents, authoredBy);
+              cosineSimlaritySlice = createSimilarToLinks(documents, similarTo);
+              entitySlice = createEntityLinks(documents, entities, hasEntity);
+              citeSlice = createCitesLinks(documents, cites);
+              loadVisualization(authorSlice[0], authorSlice[1]);
+            })
+          })
+        })
       })
     })
   })
@@ -228,6 +255,89 @@ function createSimilarToLinks(documents, relationships) {
   return [nodes, links];
 }
 
+function createEntityLinks(documents, entities, relationships) {
+  var i = 0;
+  var nodes = [];
+  var entityIndices = {};
+  for (; i<entities.length; ++i) {
+    var entity = entities[i];
+    entityIndices[entity["uuid"]] = i;
+    entity["group"] = 3;
+    nodes.push(entity);
+  }
+
+  var documentIndices = {};
+  for (j=0; j<documents.length; ++j) {
+    doc = documents[j];
+    documentIndices[doc["uuid"]] = i+j;
+    doc["group"] = 1;
+    nodes.push(doc);
+  }
+
+  // console.log(entityIndices);
+  // console.log(documentIndices);
+
+  var links = [];
+  for (i=0; i<relationships.length; ++i) {
+    var relation = relationships[i];
+    // console.log(relation);
+    if (relation.start in documentIndices && relation.end in entityIndices) {
+      // console.log(relation.start);
+      // console.log(relation.end);
+      sourceIndex = documentIndices[relation.start];
+      targetIndex = entityIndices[relation.end];
+
+      var link = {
+        source: sourceIndex,
+        target: targetIndex,
+        weight: 5
+      };
+      // console.log(link);
+      links.push( link );
+      if ("HasEntity" in allLinks) {
+        allLinks["HasEntity"].push(link);
+      } else {
+        allLinks["HasEntity"] = [link];
+      }
+    }
+  }
+  return [nodes, links];
+}
+
+function createCitesLinks(documents, relationships) {
+  var i = 0;
+  var nodes = [];
+  var documentIndices = {};
+  for (j=0; j<documents.length; ++j) {
+    doc = documents[j];
+    documentIndices[doc["uuid"]] = i+j;
+    doc["group"] = 1;
+    nodes.push(doc);
+  }
+
+  var links = [];
+  for (i=0; i<relationships.length; ++i) {
+    var relation = relationships[i];
+    sourceIndex = documentIndices[relation.start];
+    targetIndex = documentIndices[relation.end];
+
+    var weight = relation.weight;
+
+    var link = {
+      source: sourceIndex,
+      target: targetIndex,
+      weight: weight
+    };
+    links.push( link );
+    if ("Cites" in allLinks) {
+      allLinks["Cites"].push(link);
+    } else {
+      allLinks["Cites"] = [link];
+    }
+  }
+  return [nodes, links];
+}
+
 function loadVisualization(nodes, links) {
   force.nodes(nodes)
        .links(links)
@@ -249,7 +359,7 @@ function loadVisualization(nodes, links) {
   var enterNode = gnodes.enter().append("g")
     .classed('gnode', true)
     .on("mouseover", function(d){
-          if (d.type == "author") {
+          if (d.type == "author" ||  d.type == "entity") {
             d3.select(this).append("text")
               .text(d.name);
             }
@@ -266,6 +376,7 @@ function loadVisualization(nodes, links) {
             d3.event.preventDefault();
             d3.select(".popup").remove();
             d3.select(".foreignObject").remove();
+            d3.select(this).select("text").remove();
             contextMenuShowing = false;
           } else {
             d3.event.preventDefault();
@@ -287,21 +398,14 @@ function loadVisualization(nodes, links) {
               if (key!="uuid" && key!="index" && key!="weight" &&
                   key!="x" && key!="y" && key!="px" && key!="py" && key!="body" &&
                   key!="fixed") {
-                popup.append("p")
-                .append("a")
-                .attr("href", key)
-                .text(keys[i] + ": " + d[key]); 
+                keyLink = popup.append("p").append("a");
+                keyLink
+                  .attr("onclick", "searchAround(\""+keys[i]+"\")")
+                  .attr("href", "#")
+                  .text(keys[i] + ": " + d[key]);
+                    
               }
             }
-
-            form = popup.append("form");
-            form.append("input")
-                .attr("type", "text")
-                .attr("name", "name");
-            form.append("input")
-                .attr("type", "button")
-                .attr("value", "Submit")
-                .attr("onclick", "updateNode()");
 
             innerText.text(d["body"]);
           }
@@ -368,7 +472,7 @@ function labelToggle() {
   } else {
     gnodes.append("text")
       .text(function(d) {
-        if (d.type == "author") { return d.name; }
+        if (d.type == "author" || d.type == "entity") { return d.name; }
         if (d.type == "document") { return d.title; }
       });
     labelOn = true;
@@ -387,6 +491,19 @@ function sliceByCosineSimilarity() {
   loadVisualization(cosineSimlaritySlice[0], cosineSimlaritySlice[1]);
 }
 
+function sliceByHasEntity() {
+  // console.log("has entity");
+  innerSvg.remove();
+  innerSvg = svg.append("g");
+  loadVisualization(entitySlice[0], entitySlice[1]);
+}
+
+function sliceByCites() {
+  innerSvg.remove();
+  innerSvg = svg.append("g");
+  loadVisualization(citeSlice[0], citeSlice[1]);
+}
+
 function searchByText(form) {
   for (var key in workingSet) {
     nodes = workingSet[key];
@@ -398,16 +515,18 @@ function searchByText(form) {
   }
   workingSet = {};
 
-  // console.log(uuidToNode);
   var queryText = form.textSearchBox.value;
+  // console.log(queryText);
   var gnodes = svg.selectAll("g.gnode");
   $.get("http://localhost:5000/search", {"query":queryText})
    .done(function(queryResults) {
-      console.log("queryResults", queryResults);
+      // console.log("queryResults", queryResults);
       for (var i=0; i<queryResults.length; ++i) {
         uuid = queryResults[i]["uuid"];
         type = queryResults[i]["type"];
         node = uuidToNode[uuid];
+        // console.log(uuid, node);
+        if (node == null) continue;
 
         if (!(type in workingSet)) workingSet[type] = {};
         workingSet[type][uuid] = node;
@@ -415,29 +534,31 @@ function searchByText(form) {
         d3.select(node).select("circle")
           .style("fill", function(d) { return "RED"; });
       }
-      console.log(workingSet);
+      // console.log(workingSet);
   });
 }
 
 function filterByWorkingSet() {
   // get all the edges with this node, and get all the nodes they connect to
-  console.log(uuidToNode);
-  console.log(workingSet);
-  workingNodes = {}
+  // console.log(uuidToNode);
+  // console.log(workingSet);
+  workingNodes = {};
   for (var type in workingSet) {
     nodes = workingSet[type];
-    console.log("nodes", nodes);
+    // console.log("nodes", nodes);
     for (var uuid in nodes) {
       workingNodes[uuid] = nodes[uuid];
     }
   }
 
-  connectedToWorkingNode = {}
-  workingLinks = []
+  connectedToWorkingNode = {};
+  workingLinks = [];
+  console.log(allLinks);
   for (var key in allLinks) {
     links = allLinks[key];
     for (var i in links) {
       link = links[i];
+      // console.log(link);
       if (link.source["uuid"] in workingNodes) {
         workingLinks.push(link);
 
@@ -453,17 +574,18 @@ function filterByWorkingSet() {
     }
   }
 
-  console.log(connectedToWorkingNode);
+  // console.log(connectedToWorkingNode);
   for (var uuid in connectedToWorkingNode) {
     node = uuidToNode[uuid];
     nodeData = node["__data__"];
-    console.log(node);
-    console.log(nodeData);
-    console.log(nodeData["type"]);
+    // console.log(node);
+    // console.log(nodeData);
+    // console.log(nodeData["type"]);
     if (!(nodeData["type"] in workingSet)) workingSet[nodeData["type"]] = {};
     workingSet[nodeData["type"]][uuid] = node;
+    workingNodes[uuid] = node;
   }
-  console.log(workingSet);
+  // console.log(workingSet);
 
   authors = [];
   for (var uuid in workingSet["author"]) {
@@ -473,23 +595,71 @@ function filterByWorkingSet() {
   for (var uuid in workingSet["document"]) {
     documents.push(workingSet["document"][uuid]["__data__"]);
   }
+  entities = [];
+  for (var uuid in workingSet["entity"]) {
+    entities.push(workingSet["entity"][uuid]["__data__"]);
+  }
 
 
-  console.log(authors);
-  console.log(documents);
+  // console.log(authors);
+  // console.log(documents);
 
   authorSlice = createAuthoredByLinks(authors, documents, authoredBy_);
   cosineSimlaritySlice = createSimilarToLinks(documents, similarTo_);
-
-  console.log(authoredBy_);
-  console.log(similarTo_);
-  console.log(authorSlice);
-  console.log(cosineSimlaritySlice);
-
+  entitySlice = createEntityLinks(documents, entities, hasEntity_);
+  citeSlice = createCitesLinks(documents, cites_);
+  workingSetSlice = createWorkingSetLinks(workingNodes, workingLinks);
+  // console.log(authoredBy_);
+  // console.log(similarTo_);
+  // console.log(authorSlice);
+  // console.log(cosineSimlaritySlice);
+// 
   innerSvg.remove();
   innerSvg = svg.append("g");
-  loadVisualization(authorSlice[0], authorSlice[1]);
+  loadVisualization(workingSetSlice[0], workingSetSlice[1]);
 }
+
+function createWorkingSetLinks(workingNodes, relationships) {
+  var i = 0;
+  var j = 0;
+  var nodes = [];
+  var nodeIndices = {};
+  console.log(workingNodes);
+  console.log(workingNodes.length);
+  for (var uuid in workingNodes) {
+    var node = workingNodes[uuid]["__data__"];
+    console.log(uuid, node);
+    nodeIndices[uuid] = i+j;
+    nodes.push(node);
+    j++;
+  }
+  console.log(nodeIndices);
+  console.log(relationships);
+  var links = [];
+  for (i=0; i<relationships.length; ++i) {
+    var relation = relationships[i];
+    if (relation.source["uuid"] in nodeIndices &&
+        relation.target["uuid"] in nodeIndices) {
+      sourceIndex = nodeIndices[relation.source["uuid"]];
+      targetIndex = nodeIndices[relation.target["uuid"]];
+
+      var weight = 5;
+      if (relation.weight != null) {
+        var weight = relation.weight;
+      }
+      
+      var link = {
+        source: sourceIndex,
+        target: targetIndex,
+        weight: weight
+      };
+      links.push( link );
+    }
+  }
+  console.log(nodes, links);
+  return [nodes, links];
+}
+
 
 function reset() {
   authorSlice = createAuthoredByLinks(authors_, documents_, authoredBy_);
@@ -500,14 +670,19 @@ function reset() {
   loadVisualization(authorSlice[0], authorSlice[1]);
 }
 
+function searchAround(key) {
+  console.log("search Around " + key);
+
+}
+
 function populateUuidNodeMap() {
   var gnodes = svg.selectAll("g.gnode");
   // console.log("populate");
-
-  // console.log(gnodes);
+  
   gnodesArr = gnodes[0];
   var gindexes = Object.keys(gnodesArr);
   for (var i=0; i<gindexes.length-1; i++) {
+    // console.log(gindexes);
     var gnode = gnodesArr[i];
     var gnodeKeys = Object.keys(gnode);
     var key = "__data__";
@@ -519,7 +694,12 @@ function populateUuidNodeMap() {
 
     uuidToNode[gnodeAttrs["uuid"]] = gnode;
   }
-  console.log(uuidToNode);
+
+  for (var node in entities_) {
+    // console.log(node);
+    uuidToNode[node["uuid"]] = node;
+  }
+  // console.log(uuidToNode);
 }
 
 var zoomBool = true;
