@@ -401,7 +401,6 @@ function loadVisualization(nodes, links) {
             var keys = ["AuthoredBy", "SimilarTo", "HasEntity", "Cites"];
             for (var i=0; i<keys.length; ++i) {
               var key = keys[i];
-              console.log("searchAround(" + d["uuid"] + "," + "\""+keys[i]+"\")");
                 keyLink = popup.append("p").append("a");
                 keyLink
                   .attr("onclick", "searchAround(\"" + d["uuid"] + "\"," + "\""+keys[i]+"\")")
@@ -684,11 +683,20 @@ function searchAround(uuid, key) {
     for (var index in relationships) {
       var rel = relationships[index];
       var startNode = uuidToNode[rel["start"]];
+      var startType = startNode["__data__"]["type"];
+
       var endNode = uuidToNode[rel["end"]];
+      var endType = endNode["__data__"]["type"];
+
       console.log(startNode, endNode);
       console.log(startNode["__data__"]["type"], endNode["__data__"]["type"]);
 
+      if (!(startType in startNode["__data__"]))
+        workingSet[startNode["__data__"]["type"]] = {};
       workingSet[startNode["__data__"]["type"]][rel["start"]] = startNode;
+
+      if (!(endType in endNode["__data__"])) 
+        workingSet[endNode["__data__"]["type"]] = {};
       workingSet[endNode["__data__"]["type"]][rel["end"]] = endNode;
     }
 
