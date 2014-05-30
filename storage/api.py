@@ -43,7 +43,8 @@ def serialize_node(node):
     return node.properties
   elif node['type'] == 'document':
     node_serialized = node.properties
-    del node_serialized['abstract']
+    if 'abstract' in node_serialized:
+      del node_serialized['abstract']
     return node_serialized
   elif node['type'] == 'entity':
     return node.properties
