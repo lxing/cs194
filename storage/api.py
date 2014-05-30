@@ -11,8 +11,8 @@ api = Api(app)
 gdb = GraphDatabase('http://localhost:7474/db/data/')
 
 # The dumbest cache ever. Preload relationships permanently
+NUM_SIMILARITIES = 5
 rel_cache = {}
-
 
 # idx = None
 # if 'idx' in gdb.nodes.indexes.keys():
@@ -50,9 +50,16 @@ def serialize_node(node):
     return node.properties
 
 def serialize_relationship(rel):
-    endpoints = {'start': rel.start['uuid'], 'end': rel.end['uuid']}
-    return dict(rel.properties.items() + endpoints.items())
+  endpoints = {'start': rel.start['uuid'], 'end': rel.end['uuid']}
+  return dict(rel.properties.items() + endpoints.items())
 
+def preload_similarity_rels():
+  rels = []
+  for doc_node in gdb.nodes.filter(Q('type', iexact='document')):
+    doc_rels = doc_node.relationships.outgoing(types=['SimilarTo'])
+    sorted_doc_rels = sorted(doc_rels, key=lambda rel: -rel['weight'])
+    rels += doc_rels[:NUM_SIMILARITIES]
+  rel_cache['SimilarTo'] = map(lambda rel: serialize_relationship(rel), rels)
 
 ###############
 # API Classes #
@@ -119,9 +126,7 @@ class EntityList(Resource):
 
 class AuthoredBy(Resource):
   def put(self, doc_id, author_id):
-    print 'doc node'
     doc_node = get_by_type_and_uuid('document', doc_id)
-    print 'author node'
     author_node = get_by_type_and_uuid('author', author_id)
     doc_node.relationships.create('AuthoredBy', author_node, type='AuthoredBy')
 
@@ -139,8 +144,10 @@ class Cites(Resource):
 
 
 class RelationshipList(Resource):
-  # TODO: figure out how to filter by built-in type
   def get(self, rel_type):
+    if rel_type in rel_cache:
+      return rel_cache[rel_type]
+
     rels = gdb.relationships.filter(Q('type',iexact=rel_type))
     return map(lambda rel: serialize_relationship(rel), rels)
 
@@ -188,4 +195,5 @@ api.add_resource(Search, '/search')
 api.add_resource(SearchAround, '/searchAround/<string:doc_id>/<string:rel_type>/')
 
 if __name__ == '__main__':
-    app.run(debug=True)
+  preload_similarity_rels()
+  app.run(debug=True)
