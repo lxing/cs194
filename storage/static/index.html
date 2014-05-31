@@ -92,7 +92,7 @@ var svg = d3.select("body").append("div")
         .on("zoom", zoom))
         .on("dblclick.zoom", null);
 
-var text = d3.select("body").append("div")
+var text = d3.select("body").append("iframe")
     .attr("id", "text")
     .style("float", "right")
     .style("width", width + "px");
@@ -171,8 +171,8 @@ $.get("http://localhost:5000/authors", function(authors) {
               cosineSimlaritySlice = createSimilarToLinks(documents, similarTo);
               entitySlice = createEntityLinks(documents, entities, hasEntity);
               citeSlice = createCitesLinks(documents, cites);
-              
-              
+
+
               loadVisualization(authorSlice[0], authorSlice[1]);
               innerSvg.remove();
               innerSvg = svg.append("g");
@@ -390,7 +390,7 @@ function loadVisualization(nodes, links) {
             contextMenuShowing = false;
           } else {
             d3.event.preventDefault();
-            contextMenuShowing = true;
+            contextmenuShowing = true;
             selectedNode = d;
 
             mousePosition = [d3.event.x, d3.event.y];
@@ -412,9 +412,11 @@ function loadVisualization(nodes, links) {
                   .text(keys[i]);
             }
 
+            keyLink = popup.append("p").append("a");
+            keyLink.attr("href", d["url"]).attr("target", "_blank").text("View");
+
             innerText.text(d["body"]);
           }
-
     });
 
   var node = gnodes.append("circle")
@@ -425,14 +427,14 @@ function loadVisualization(nodes, links) {
       })
       .on("dblclick", dblclick)
       .call(drag);
-  
+
   force.on("tick", function() {
     link.attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
         .attr("y2", function(d) { return d.target.y; });
 
-    gnodes.attr("transform", function(d) { 
+    gnodes.attr("transform", function(d) {
         return 'translate(' + [d.x, d.y] + ')';
     });
   });
@@ -463,7 +465,7 @@ function forceToggle() {
     force.start();
     forceBool = false;
   } else {
-    force.stop();  
+    force.stop();
     forceBool = true;
   }
 }
@@ -535,7 +537,7 @@ function searchByText(form) {
 
         if (!(type in workingSet)) workingSet[type] = {};
         workingSet[type][uuid] = node;
-        
+
         d3.select(node).select("circle")
           .style("fill", function(d) { return "RED"; });
       }
@@ -618,7 +620,7 @@ function filterByWorkingSet() {
   // console.log(similarTo_);
   // console.log(authorSlice);
   // console.log(cosineSimlaritySlice);
-// 
+//
   innerSvg.remove();
   innerSvg = svg.append("g");
   loadVisualization(workingSetSlice[0], workingSetSlice[1]);
@@ -652,7 +654,7 @@ function createWorkingSetLinks(workingNodes, relationships) {
       if (relation.weight != null) {
         var weight = relation.weight;
       }
-      
+
       var link = {
         source: sourceIndex,
         target: targetIndex,
@@ -699,7 +701,7 @@ function searchAround(uuid, key) {
         workingSet[startNode["__data__"]["type"]] = {};
       workingSet[startNode["__data__"]["type"]][rel["start"]] = startNode;
 
-      if (!(endType in endNode["__data__"])) 
+      if (!(endType in endNode["__data__"]))
         workingSet[endNode["__data__"]["type"]] = {};
       workingSet[endNode["__data__"]["type"]][rel["end"]] = endNode;
     }
@@ -711,7 +713,7 @@ function searchAround(uuid, key) {
 function populateUuidNodeMap() {
   var gnodes = svg.selectAll("g.gnode");
   // console.log("populate");
-  
+
   gnodesArr = gnodes[0];
   var gindexes = Object.keys(gnodesArr);
   for (var i=0; i<gindexes.length-1; i++) {
