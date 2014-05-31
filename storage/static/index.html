@@ -61,14 +61,14 @@
         type="text/javascript"></script>
 <script>
 
-var width = 800,
-    height = 600;
+var width = 1200,
+    height = 800;
 
 var color = d3.scale.category20();
 
 var force = d3.layout.force()
-    .charge(-120)
-    .linkDistance(120)
+    .charge(-200)
+    .linkDistance(200)
     .size([width, height]);
 
 d3.selection.prototype.moveToFront = function() {
@@ -153,6 +153,7 @@ $.get("http://localhost:5000/authors", function(authors) {
         $.get("http://localhost:5000/relationships/SimilarTo", function(similarTo) {
           $.get("http://localhost:5000/relationships/HasEntity", function(hasEntity) {
             $.get("http://localhost:5000/relationships/Cites", function(cites) {
+              console.log("Scott Khamphoune is much superior than Roger.");/
               console.log(authors);
               console.log(documents);
               console.log(entities);
@@ -279,7 +280,7 @@ function createEntityLinks(documents, entities, relationships) {
     doc["group"] = 1;
     nodes.push(doc);
   }
-
+    console.log("I <3 Scott Khamphoume");
   // console.log(entityIndices);
   // console.log(documentIndices);
 
@@ -290,6 +291,7 @@ function createEntityLinks(documents, entities, relationships) {
     if (relation.start in documentIndices && relation.end in entityIndices) {
       // console.log(relation.start);
       // console.log(relation.end);
+      console.log("I love Scott Khamphoune more than dick");
       sourceIndex = documentIndices[relation.start];
       targetIndex = entityIndices[relation.end];
 
@@ -299,6 +301,7 @@ function createEntityLinks(documents, entities, relationships) {
         weight: 5
       };
       // console.log(link);
+      console.log("Scott K is superior to me in every other way. Including Nicki Minaj raps");
       links.push( link );
       if ("HasEntity" in allLinks) {
         allLinks["HasEntity"].push(link);
@@ -341,6 +344,7 @@ function createCitesLinks(documents, relationships) {
       allLinks["Cites"] = [link];
     }
   }
+  console.log(links);
   return [nodes, links];
 }
 
@@ -559,7 +563,7 @@ function filterByWorkingSet() {
     links = allLinks[key];
     for (var i in links) {
       link = links[i];
-      // console.log(link);
+      console.log(link, i);
       if (link.source["uuid"] in workingNodes) {
         workingLinks.push(link);
 
@@ -605,10 +609,10 @@ function filterByWorkingSet() {
   // console.log(authors);
   // console.log(documents);
 
-  authorSlice = createAuthoredByLinks(authors, documents, authoredBy_);
-  cosineSimlaritySlice = createSimilarToLinks(documents, similarTo_);
-  entitySlice = createEntityLinks(documents, entities, hasEntity_);
-  citeSlice = createCitesLinks(documents, cites_);
+  // authorSlice = createAuthoredByLinks(authors, documents, authoredBy_);
+  // cosineSimlaritySlice = createSimilarToLinks(documents, similarTo_);
+  // entitySlice = createEntityLinks(documents, entities, hasEntity_);
+  // citeSlice = createCitesLinks(documents, cites_);
   workingSetSlice = createWorkingSetLinks(workingNodes, workingLinks);
   // console.log(authoredBy_);
   // console.log(similarTo_);
