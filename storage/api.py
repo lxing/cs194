@@ -169,9 +169,9 @@ class SearchAround(Resource):
     node = get_by_type_and_uuid(node_type, node_id)
     rels = []
     if dir == 'in':
-      rels = doc_node.relationships.incoming(types=[rel_type])
+      rels = node.relationships.incoming(types=[rel_type])
     else:
-      rels = doc_node.relationships.outgoing(types=[rel_type])
+      rels = node.relationships.outgoing(types=[rel_type])
 
     rels_serialized = map(lambda rel: serialize_relationship(rel), rels)
     nodes_serialized = map(lambda rel: serialize_node(rel.end), rels)

@@ -341,7 +341,7 @@ function createCitesLinks(documents, relationships) {
       allLinks["Cites"] = [link];
     }
   }
-  console.log(links);
+  // console.log(links);
   return [nodes, links];
 }
 
@@ -399,7 +399,7 @@ function loadVisualization(nodes, links) {
             popup = foreignObj.append("xhtml:div")
                 .attr("class", "popup")
                 .style("background-color", "azure")
-            var keys = ["AuthoredBy", "SimilarTo", "HasEntity", "Cites"];
+            var keys = ["AuthoredBy", "SimilarTo", "HasEntity", "Cites", "AddToWorkingSet"];
             for (var i=0; i<keys.length; ++i) {
               var key = keys[i];
                 keyLink = popup.append("p").append("a");
@@ -507,15 +507,15 @@ function sliceByCites() {
 }
 
 function searchByText(form) {
-  for (var key in workingSet) {
-    nodes = workingSet[key];
-    for (var i in nodes) {
-      node = nodes[i];
-      d3.select(node).select("circle")
-        .style("fill", function(d) { return color(d.group); });
-    }
-  }
-  workingSet = {};
+  // for (var key in workingSet) {
+  //   nodes = workingSet[key];
+  //   for (var i in nodes) {
+  //     node = nodes[i];
+  //     d3.select(node).select("circle")
+  //       .style("fill", function(d) { return color(d.group); });
+  //   }
+  // }
+  // workingSet = {};
 
   var queryText = form.textSearchBox.value;
   // console.log(queryText);
@@ -530,8 +530,8 @@ function searchByText(form) {
         // console.log(uuid, node);
         if (node == null) continue;
 
-        if (!(type in workingSet)) workingSet[type] = {};
-        workingSet[type][uuid] = node;
+        // if (!(type in workingSet)) workingSet[type] = {};
+        // workingSet[type][uuid] = node;
         
         d3.select(node).select("circle")
           .style("fill", function(d) { return "RED"; });
@@ -541,13 +541,23 @@ function searchByText(form) {
 }
 
 function filterByWorkingSet() {
+  // console.log(workingSet);
+  for (var key in workingSet) {
+    nodes = workingSet[key];
+    for (var i in nodes) {
+      node = nodes[i];
+      d3.select(node).select("circle")
+        .style("fill", function(d) { return color(d.group); });
+    }
+  }
+
   // get all the edges with this node, and get all the nodes they connect to
   // console.log(uuidToNode);
   // console.log(workingSet);
   workingNodes = {};
   for (var type in workingSet) {
     nodes = workingSet[type];
-    // console.log("nodes", nodes);
+    console.log("nodes", nodes);
     for (var uuid in nodes) {
       workingNodes[uuid] = nodes[uuid];
     }
@@ -560,8 +570,8 @@ function filterByWorkingSet() {
     links = allLinks[key];
     for (var i in links) {
       link = links[i];
-      console.log(link, i);
-      if (link.source["uuid"] in workingNodes) {
+      // console.log(link, i);
+      if (link.source["uuid"] in workingNodes && link.target["uuid"] in workingNodes) {
         workingLinks.push(link);
 
         node = uuidToNode[link.target["uuid"]];
@@ -577,16 +587,16 @@ function filterByWorkingSet() {
   }
 
   // console.log(connectedToWorkingNode);
-  for (var uuid in connectedToWorkingNode) {
-    node = uuidToNode[uuid];
-    nodeData = node["__data__"];
+  // for (var uuid in connectedToWorkingNode) {
+    // node = uuidToNode[uuid];
+    // nodeData = node["__data__"];
     // console.log(node);
     // console.log(nodeData);
     // console.log(nodeData["type"]);
-    if (!(nodeData["type"] in workingSet)) workingSet[nodeData["type"]] = {};
-    workingSet[nodeData["type"]][uuid] = node;
-    workingNodes[uuid] = node;
-  }
+    // if (!(nodeData["type"] in workingSet)) workingSet[nodeData["type"]] = {};
+    // workingSet[nodeData["type"]][uuid] = node;
+    // workingNodes[uuid] = node;
+  // }
   // console.log(workingSet);
 
   authors = [];
@@ -606,10 +616,10 @@ function filterByWorkingSet() {
   // console.log(authors);
   // console.log(documents);
 
-  // authorSlice = createAuthoredByLinks(authors, documents, authoredBy_);
-  // cosineSimlaritySlice = createSimilarToLinks(documents, similarTo_);
-  // entitySlice = createEntityLinks(documents, entities, hasEntity_);
-  // citeSlice = createCitesLinks(documents, cites_);
+  authorSlice = createAuthoredByLinks(authors, documents, authoredBy_);
+  cosineSimlaritySlice = createSimilarToLinks(documents, similarTo_);
+  entitySlice = createEntityLinks(documents, entities, hasEntity_);
+  citeSlice = createCitesLinks(documents, cites_);
   workingSetSlice = createWorkingSetLinks(workingNodes, workingLinks);
   // console.log(authoredBy_);
   // console.log(similarTo_);
@@ -664,6 +674,7 @@ function createWorkingSetLinks(workingNodes, relationships) {
 
 
 function reset() {
+  workingSet = {};
   authorSlice = createAuthoredByLinks(authors_, documents_, authoredBy_);
   cosineSimlaritySlice = createSimilarToLinks(documents_, similarTo_);
   entitySlice = createEntityLinks(documents_, entities_, hasEntity_);
@@ -681,6 +692,12 @@ function searchAround(uuid, key) {
   var type = node["__data__"]["type"];
   var relation = key;
   var direction = "out";
+  if (relation == "AddToWorkingSet") {
+    if (!(type in workingSet)) workingSet[type] = {};
+    workingSet[type][uuid] = node;
+    return;
+  }
+
   if (type == "document") {
     if (relation == "AuthoredBy") direction = "out";
     if (relation == "HasEntity") direction = "out";
@@ -699,32 +716,34 @@ function searchAround(uuid, key) {
   }
   var searchAroundUrl = "http://localhost:5000/searchAround/" + type + "/" + uuid + "/" + relation + "/" + direction;
   console.log(searchAroundUrl);
+  console.log(workingSet);
 
-  // $.get("http://localhost:5000/searchAround/"+uuid+"/"+key, function(queryResults) {
-  //   var relationships = queryResults["relationships"];
-  //   console.log(relationships);
-  //   for (var index in relationships) {
-  //     var rel = relationships[index];
-  //     var startNode = uuidToNode[rel["start"]];
-  //     var startType = startNode["__data__"]["type"];
+  $.get(searchAroundUrl, function(queryResults) {
+    var relationships = queryResults["relationships"];
+    // console.log(relationships);
+    for (var index in relationships) {
+      var rel = relationships[index];
+      var startNode = uuidToNode[rel["start"]];
+      var startType = startNode["__data__"]["type"];
 
-  //     var endNode = uuidToNode[rel["end"]];
-  //     var endType = endNode["__data__"]["type"];
+      var endNode = uuidToNode[rel["end"]];
+      var endType = endNode["__data__"]["type"];
 
-  //     console.log(startNode, endNode);
-  //     console.log(startNode["__data__"]["type"], endNode["__data__"]["type"]);
+      // console.log(startNode, endNode);
+      // console.log(startNode["__data__"]["type"], endNode["__data__"]["type"]);
 
-  //     if (!(startType in startNode["__data__"]))
-  //       workingSet[startNode["__data__"]["type"]] = {};
-  //     workingSet[startNode["__data__"]["type"]][rel["start"]] = startNode;
+      if (!(startType in workingSet))
+        workingSet[startNode["__data__"]["type"]] = {};
+      workingSet[startNode["__data__"]["type"]][rel["start"]] = startNode;
 
-  //     if (!(endType in endNode["__data__"])) 
-  //       workingSet[endNode["__data__"]["type"]] = {};
-  //     workingSet[endNode["__data__"]["type"]][rel["end"]] = endNode;
-  //   }
+      if (!(endType in workingSet)) 
+        workingSet[endNode["__data__"]["type"]] = {};
+      workingSet[endNode["__data__"]["type"]][rel["end"]] = endNode;
+    }
 
-  //   filterByWorkingSet();
-  // });
+    // console.log(workingSet);
+    filterByWorkingSet();
+  });
 }
 
 function populateUuidNodeMap() {
@@ -751,7 +770,7 @@ function populateUuidNodeMap() {
     // console.log(node);
     uuidToNode[node["uuid"]] = node;
   }
-  console.log(uuidToNode);
+  // console.log(uuidToNode);
 }
 
 var zoomBool = true;
