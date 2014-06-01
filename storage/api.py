@@ -165,9 +165,13 @@ class Search(Resource):
 # For now, only searcharound outgoing rels
 # Return both the relationships and the endpoint nodes
 class SearchAround(Resource):
-  def get(self, doc_id, rel_type):
-    doc_node = get_by_type_and_uuid('document', doc_id)
-    rels = doc_node.relationships.outgoing(types=[rel_type])
+  def get(self, node_type, node_id, rel_type, dir):
+    node = get_by_type_and_uuid(node_type, node_id)
+    rels = []
+    if dir == 'in':
+      rels = doc_node.relationships.incoming(types=[rel_type])
+    else:
+      rels = doc_node.relationships.outgoing(types=[rel_type])
 
     rels_serialized = map(lambda rel: serialize_relationship(rel), rels)
     nodes_serialized = map(lambda rel: serialize_node(rel.end), rels)
@@ -192,7 +196,7 @@ api.add_resource(Cites, '/documents/<string:source_id>/cites/<string:dest_id>')
 api.add_resource(RelationshipList, '/relationships/<string:rel_type>')
 
 api.add_resource(Search, '/search')
-api.add_resource(SearchAround, '/searchAround/<string:doc_id>/<string:rel_type>/')
+api.add_resource(SearchAround, '/searchAround/<string:node_type>/<string:node_id>/<string:rel_type>/<string:dir>')
 
 if __name__ == '__main__':
   preload_similarity_rels()
