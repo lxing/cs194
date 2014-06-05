@@ -118,14 +118,20 @@ text.append("rect")
     .style("stroke-opacity", .7);
 
 var innerSvg = svg.append("g");
-var innerText = text.append("g")
-    .append("textarea")
-      .attr("wrap", "hard")
-      .style("font-size", "14pt")
-      .style("font-family", "Arial")
-      .style("width", width + "px")
-      .style("height", height + "px")
-      .text("Roger");;
+// var innerText = text.append("g")
+//     .append("textarea")
+//       .attr("wrap", "hard")
+//       .style("font-size", "14pt")
+//       .style("font-family", "Arial")
+//       .style("width", width + "px")
+//       .style("height", height + "px")
+//       .text("Roger");;
+var iFrame = text.append("iframe")
+    .attr("id", "proxyFrame")
+    .style("width", width + "px")
+    .style("height", height + "px");
+
+var href = document.createElement("a");
 
 // need a map of uuid to the nodes
 var uuidToNode = {};
@@ -410,9 +416,8 @@ function loadVisualization(nodes, links) {
             }
 
             keyLink = popup.append("p").append("a");
-            keyLink.attr("href", d["url"]).attr("target", "_blank").text("View");
-
-            innerText.text(d["body"]);
+            keyLink.attr("href", "#").text("View")
+              .attr("onclick", "viewDocument(\"" + d["url"] + "\")");
           }
 
     });
@@ -687,6 +692,13 @@ function reset() {
   innerSvg.remove();
   innerSvg = svg.append("g");
   loadVisualization(authorSlice[0], authorSlice[1]);
+}
+
+
+function viewDocument(url) {
+  console.log(url)
+  href.href = url
+  $("#proxyFrame").attr("src","http://localhost:8000" + href.pathname);
 }
 
 function searchAround(uuid, key) {

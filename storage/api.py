@@ -1,4 +1,6 @@
-from flask import Flask, request
+import requests
+
+from flask import Flask, request, Response
 from flask.ext.restful import reqparse, abort, Api, Resource
 
 from neo4jrestclient.client import GraphDatabase
@@ -6,7 +8,7 @@ from neo4jrestclient.query import Q
 
 #from index import *
 
-app = Flask(__name__)
+app = Flask(__name__.split('.')[0])
 api = Api(app)
 gdb = GraphDatabase('http://localhost:7474/db/data/')
 
@@ -60,6 +62,7 @@ def preload_similarity_rels():
     sorted_doc_rels = sorted(doc_rels, key=lambda rel: -rel['weight'])
     rels += doc_rels[:NUM_SIMILARITIES]
   rel_cache['SimilarTo'] = map(lambda rel: serialize_relationship(rel), rels)
+
 
 ###############
 # API Classes #
