@@ -56,6 +56,7 @@
     value="Filter"
     onclick="filterByWorkingSet()"/>
 </div>
+<div style="display:none; position:absolute; background-color:white; border: 1px solid; padding-left: 3px; padding-right: 3px" id="floatDiv">Roger Hau</div>
 <script src="http://d3js.org/d3.v3.min.js"></script>
 <script src="http://code.jquery.com/jquery-latest.min.js"
         type="text/javascript"></script>
@@ -176,8 +177,8 @@ $.get("http://localhost:5000/authors", function(authors) {
               cosineSimlaritySlice = createSimilarToLinks(documents, similarTo);
               entitySlice = createEntityLinks(documents, entities, hasEntity);
               citeSlice = createCitesLinks(documents, cites);
-
-
+              
+              
               loadVisualization(authorSlice[0], authorSlice[1]);
               innerSvg.remove();
               innerSvg = svg.append("g");
@@ -247,21 +248,23 @@ function createSimilarToLinks(documents, relationships) {
   var links = [];
   for (i=0; i<relationships.length; ++i) {
     var relation = relationships[i];
-    sourceIndex = documentIndices[relation.start];
-    targetIndex = documentIndices[relation.end];
+    if (relation.start in documentIndices && relation.end in documentIndices) {
+      sourceIndex = documentIndices[relation.start];
+      targetIndex = documentIndices[relation.end];
 
-    var weight = relation.weight;
+      var weight = relation.weight;
 
-    var link = {
-      source: sourceIndex,
-      target: targetIndex,
-      weight: weight
-    };
-    links.push( link );
-    if ("SimilarTo" in allLinks) {
-      allLinks["SimilarTo"].push(link);
-    } else {
-      allLinks["SimilarTo"] = [link];
+      var link = {
+        source: sourceIndex,
+        target: targetIndex,
+        weight: weight
+      };
+      links.push( link );
+      if ("SimilarTo" in allLinks) {
+        allLinks["SimilarTo"].push(link);
+      } else {
+        allLinks["SimilarTo"] = [link];
+      }
     }
   }
   return [nodes, links];
@@ -330,21 +333,23 @@ function createCitesLinks(documents, relationships) {
   var links = [];
   for (i=0; i<relationships.length; ++i) {
     var relation = relationships[i];
-    sourceIndex = documentIndices[relation.start];
-    targetIndex = documentIndices[relation.end];
+    if (relation.start in documentIndices && relation.end in documentIndices) {
+      sourceIndex = documentIndices[relation.start];
+      targetIndex = documentIndices[relation.end];
 
-    var weight = relation.weight;
+      var weight = relation.weight;
 
-    var link = {
-      source: sourceIndex,
-      target: targetIndex,
-      weight: weight
-    };
-    links.push( link );
-    if ("Cites" in allLinks) {
-      allLinks["Cites"].push(link);
-    } else {
-      allLinks["Cites"] = [link];
+      var link = {
+        source: sourceIndex,
+        target: targetIndex,
+        weight: weight
+      };
+      links.push( link );
+      if ("Cites" in allLinks) {
+        allLinks["Cites"].push(link);
+      } else {
+        allLinks["Cites"] = [link];
+      }
     }
   }
   // console.log(links);
@@ -369,20 +374,25 @@ function loadVisualization(nodes, links) {
   var gnodes = innerSvg.selectAll('g.gnode')
     .data(nodes);
 
+
   var enterNode = gnodes.enter().append("g")
     .classed('gnode', true)
     .on("mouseover", function(d){
-          if (d.type == "author" ||  d.type == "entity") {
-            d3.select(this).append("text")
-              .text(d.name);
+          if (!($("div#floatDiv").css("display")==="block")) {
+            var floatText = "error";
+            if (d.type == "author" ||  d.type == "entity") {
+              floatText = d.name;
+            } else if (d.type == "document") {
+              floatText = d.title;
             }
-          if (d.type == "document") {
-            d3.select(this).append("text")
-              .text(d.title);
-          }
+            $("div#floatDiv").show()
+                .html(floatText)
+                .css("left", (d3.event.x + 25) + "px")
+                .css("top", (d3.event.y - 25) + "px");
+            }
         })
     .on("mouseout", function(d) {
-          d3.select(this).select("text").remove();
+          $("div#floatDiv").hide();
         })
     .on('contextmenu', function(d) {
           if(contextMenuShowing) {
@@ -424,20 +434,20 @@ function loadVisualization(nodes, links) {
 
   var node = gnodes.append("circle")
       .attr("class", "node")
-      .attr("r", 5)
+      .attr("r", 10)
       .style("fill", function(d) {
         return color(d.group);
       })
       .on("dblclick", dblclick)
       .call(drag);
-
+  
   force.on("tick", function() {
     link.attr("x1", function(d) { return d.source.x; })
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
         .attr("y2", function(d) { return d.target.y; });
 
-    gnodes.attr("transform", function(d) {
+    gnodes.attr("transform", function(d) { 
         return 'translate(' + [d.x, d.y] + ')';
     });
   });
@@ -445,14 +455,14 @@ function loadVisualization(nodes, links) {
   function dblclick(d) {
     d3.select(this)
       .classed("fixed", d.fixed = false)
-      .attr("r", 5);
+      .attr("r", 10);
   }
 
   function dragstart(d) {
     zoomBool = false;
     d3.select(this)
         .classed("fixed", d.fixed = true)
-        .attr("r", 8);
+        .attr("r", 15);
   }
 
   function dragend(d) {
@@ -465,10 +475,10 @@ function loadVisualization(nodes, links) {
 var forceBool = true;
 function forceToggle() {
   if (forceBool == true) {
-    force.start();
-    forceBool = false;
+    d3.selectAll()
+      .classed("fixed", d.fix)
   } else {
-    force.stop();
+    force.stop();  
     forceBool = true;
   }
 }
@@ -515,14 +525,19 @@ function sliceByCites() {
 }
 
 function searchByText(form) {
-  // for (var key in workingSet) {
-  //   nodes = workingSet[key];
-  //   for (var i in nodes) {
-  //     node = nodes[i];
-  //     d3.select(node).select("circle")
-  //       .style("fill", function(d) { return color(d.group); });
-  //   }
-  // }
+  console.log(uuidToNode);
+  for (var uuid in uuidToNode) {
+
+    node = uuidToNode[uuid];
+    console.log(node);
+    d3.select(node)
+        .style("fill", function(d) { return color(d.group); });
+    // for (var i in nodes) {
+    //   node = nodes[i];
+    //   d3.select(node).select("circle")
+    //     .style("fill", function(d) { return color(d.group); });
+    // }
+  }
   // workingSet = {};
 
   var queryText = form.textSearchBox.value;
@@ -540,7 +555,7 @@ function searchByText(form) {
 
         // if (!(type in workingSet)) workingSet[type] = {};
         // workingSet[type][uuid] = node;
-
+        
         d3.select(node).select("circle")
           .style("fill", function(d) { return "RED"; });
       }
@@ -578,7 +593,7 @@ function filterByWorkingSet() {
     links = allLinks[key];
     for (var i in links) {
       link = links[i];
-      // console.log(link, i);
+      console.log(key, link, i);
       if (link.source["uuid"] in workingNodes && link.target["uuid"] in workingNodes) {
         workingLinks.push(link);
 
@@ -633,7 +648,7 @@ function filterByWorkingSet() {
   // console.log(similarTo_);
   // console.log(authorSlice);
   // console.log(cosineSimlaritySlice);
-//
+// 
   innerSvg.remove();
   innerSvg = svg.append("g");
   loadVisualization(workingSetSlice[0], workingSetSlice[1]);
@@ -667,7 +682,7 @@ function createWorkingSetLinks(workingNodes, relationships) {
       if (relation.weight != null) {
         var weight = relation.weight;
       }
-
+      
       var link = {
         source: sourceIndex,
         target: targetIndex,
@@ -698,6 +713,7 @@ function reset() {
 function viewDocument(url) {
   console.log(url)
   href.href = url
+
   $("#proxyFrame").attr("src","http://localhost:8000" + href.pathname);
 }
 
@@ -751,7 +767,7 @@ function searchAround(uuid, key) {
         workingSet[startNode["__data__"]["type"]] = {};
       workingSet[startNode["__data__"]["type"]][rel["start"]] = startNode;
 
-      if (!(endType in workingSet))
+      if (!(endType in workingSet)) 
         workingSet[endNode["__data__"]["type"]] = {};
       workingSet[endNode["__data__"]["type"]][rel["end"]] = endNode;
     }
@@ -763,29 +779,31 @@ function searchAround(uuid, key) {
 
 function populateUuidNodeMap() {
   var gnodes = svg.selectAll("g.gnode");
-  // console.log("populate");
-
+  
+  
   gnodesArr = gnodes[0];
   var gindexes = Object.keys(gnodesArr);
+  console.log(gnodesArr);
   for (var i=0; i<gindexes.length-1; i++) {
-    // console.log(gindexes);
+    console.log(i);
     var gnode = gnodesArr[i];
-    var gnodeKeys = Object.keys(gnode);
+    console.log(gnode);
     var key = "__data__";
     var gnodeAttrs = gnode[key];
     var gnodeAttrKeys = Object.keys(gnodeAttrs);
     // console.log(gnode);
     // console.log(gnodeAttrs);
     // console.log(gnodeAttrKeys);
-
-    uuidToNode[gnodeAttrs["uuid"]] = gnode;
+    if ("uuid" in gnodeAttrs) {
+      uuidToNode[gnodeAttrs["uuid"]] = gnode;
+    }
   }
 
   for (var node in entities_) {
     // console.log(node);
     uuidToNode[node["uuid"]] = node;
   }
-  // console.log(uuidToNode);
+  console.log(uuidToNode);
 }
 
 var zoomBool = true;
