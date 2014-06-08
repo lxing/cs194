@@ -527,16 +527,17 @@ function sliceByCites() {
 function searchByText(form) {
   console.log(uuidToNode);
   for (var uuid in uuidToNode) {
-
-    node = uuidToNode[uuid];
-    console.log(node);
-    d3.select(node)
-        .style("fill", function(d) { return color(d.group); });
-    // for (var i in nodes) {
-    //   node = nodes[i];
-    //   d3.select(node).select("circle")
-    //     .style("fill", function(d) { return color(d.group); });
-    // }
+    if (!(uuid === 'undefined')) {
+      node = uuidToNode[uuid];
+      console.log(node);
+      d3.select(node).select("circle")
+          .style("fill", function(d) { return color(d.group); });
+      // for (var i in nodes) {
+      //   node = nodes[i];
+      //   d3.select(node).select("circle")
+      //     .style("fill", function(d) { return color(d.group); });
+      // }
+    }
   }
   // workingSet = {};
 
@@ -767,8 +768,8 @@ function searchAround(uuid, key) {
         workingSet[startNode["__data__"]["type"]] = {};
       workingSet[startNode["__data__"]["type"]][rel["start"]] = startNode;
 
-      if (!(endType in workingSet)) 
-        workingSet[endNode["__data__"]["type"]] = {};
+      if (!(endType in workingSet))
+         workingSet[endNode["__data__"]["type"]] = {};
       workingSet[endNode["__data__"]["type"]][rel["end"]] = endNode;
     }
 
@@ -794,7 +795,7 @@ function populateUuidNodeMap() {
     // console.log(gnode);
     // console.log(gnodeAttrs);
     // console.log(gnodeAttrKeys);
-    if ("uuid" in gnodeAttrs) {
+    if (!(gnodeAttrs["uuid"] === 'undefined')) {
       uuidToNode[gnodeAttrs["uuid"]] = gnode;
     }
   }
