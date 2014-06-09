@@ -1,0 +1,67 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <link rel="shortcut icon" href="../../assets/ico/favicon.ico">
+
+  <title>Project Graphene</title>
+
+  <!-- Bootstrap core CSS -->
+  <link href="dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Custom styles for this template -->
+  <link href="starter-template.css" rel="stylesheet">
+
+  <!-- Just for debugging purposes. Don't actually copy this line! -->
+  <!--[if lt IE 9]><script src="../../assets/js/ie8-responsive-file-warning.js"></script><![endif]-->
+
+  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+      <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+      <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+      <![endif]-->
+    </head>
+
+    <body>
+
+      <div class="container">
+
+        <div class="starter-template">
+          <img src = "logo.png" height="100" width="100"/>
+          <h1>Project Graphene</h1>
+          <p class="lead">Team: Roger Hau, Hung Tran, Lawrence Xing</p>
+        </div>
+
+        <h3>Motivation for the Project</h3>
+        <p>In the academic world, there are thousands of papers published every year, and it is hard for researchers to keep track of the current topics and trends in their respective fields. There is a dearth of tools that empower researchers to create visualizations for their massive set of academic data. Our project focuses on providing a simple way for medical students, professors and researchers to visualize academic papers, articles and explore the relationship between them. It's useful to track a hot trend in a medical field, discover clusters of related topics and explore new area of researches</p>
+
+        <h3>Description</h3>
+        <p>Our project consists of the three following components:</p>
+        <p><strong>A crawler and parser:</strong> This component is responsible for crawling and parsing data from different sources such as Medline and Google Scholar in order to collect relevant datat to a particular field that the user is interested in exploring. The collected data includes but not limited full-text papers, their abstracts, topics, authors and citations</p>
+        <p><strong>Graph database: </strong> We use Neo4j as our backing storage for its simplicty of use and its optimization for storing graph relationsips. It allows us the flexibility of creating and storing different types of nodes, relationships and quickly query for them.
+        <p><strong>Visualization layer: </strong> We levarege D3, a Javascript library for visualizing data with HTML and CSS. D3 provides us with many ways of visualizing the same data set, slicing </p>
+
+        <h3>Potential Audience</h3>
+        <p>We have two group of potential audience:</p>
+        <p><strong>The novice:</strong> People like master or PhD students who want to explore current trends and topics of various field of medical study. They can explore and find popular articles and authors </p>
+        <p><strong>The expert:</strong> Professors and researchers can use Graphene to explore the relationship between clusters of current researches and topics to identify potential future research direction</p>
+
+        <h3>Future Direction</h3>
+        <p>In the future, we can expand our product to be able to collect and parse information from more sources both online and offline. The product can also allow users more flexibility to visualize and explore data in many different way that suits their specific need instead of limiting themselves to the existing options.</p>
+
+      </div> <!-- /container -->
+      <p></p><p></p><p></p>
+
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <script src="../../dist/js/bootstrap.min.js"></script>
+  </body>
+  </html>
