@@ -47,6 +47,14 @@
            onclick="searchByText(this.form)"
            onkeypress="searchByText(this.form)">
   </form>
+  <input name="addToSearchWorkingSetButton"
+    type="button"
+    value="AddToWorkingSet"
+    onclick="addToSearchWorkingSet()"/>
+  <input name="clearWorkingSetButton"
+    type="button"
+    value="ClearWorkingSet"
+    onclick="clearWorkingSet()"/>
   <input name="reset"
     type="button"
     value="Reset"
@@ -164,6 +172,7 @@ $.get("http://localhost:5000/authors", function(authors) {
               console.log(documents);
               console.log(entities);
               console.log(cites);
+              console.log(similarTo);
 
               authors_ = authors;
               documents_ = documents;
@@ -415,7 +424,7 @@ function loadVisualization(nodes, links) {
             popup = foreignObj.append("xhtml:div")
                 .attr("class", "popup")
                 .style("background-color", "azure")
-            var keys = ["AuthoredBy", "SimilarTo", "HasEntity", "Cites", "AddToWorkingSet"];
+            var keys = ["AuthoredBy", "SimilarTo", "HasEntity", "Cites", "AddToWorkingSet", "RemoveFromWorkingSet"];
             for (var i=0; i<keys.length; ++i) {
               var key = keys[i];
                 keyLink = popup.append("p").append("a");
@@ -524,12 +533,14 @@ function sliceByCites() {
   loadVisualization(citeSlice[0], citeSlice[1]);
 }
 
+var searchWorkingSet = {}
 function searchByText(form) {
-  console.log(uuidToNode);
+  searchWorkingSet = {};
+  // console.log(uuidToNode);
   for (var uuid in uuidToNode) {
     if (!(uuid === 'undefined')) {
       node = uuidToNode[uuid];
-      console.log(node);
+      // console.log(node);
       d3.select(node).select("circle")
           .style("fill", function(d) { return color(d.group); });
       // for (var i in nodes) {
@@ -556,12 +567,25 @@ function searchByText(form) {
 
         // if (!(type in workingSet)) workingSet[type] = {};
         // workingSet[type][uuid] = node;
-        
+        searchWorkingSet[uuid] = node;
         d3.select(node).select("circle")
           .style("fill", function(d) { return "RED"; });
       }
       // console.log(workingSet);
   });
+}
+
+function addToSearchWorkingSet() {
+  for (var uuid in searchWorkingSet) {
+    var node = uuidToNode[uuid];
+    var type = node["__data__"]["type"];
+    if (!(type in workingSet)) workingSet[type] = {};
+    workingSet[type][uuid] = node;
+  }
+}
+
+function clearWorkingSet() {
+  workingSet = {};
 }
 
 function filterByWorkingSet() {
@@ -581,7 +605,7 @@ function filterByWorkingSet() {
   workingNodes = {};
   for (var type in workingSet) {
     nodes = workingSet[type];
-    console.log("nodes", nodes);
+    // console.log("nodes", nodes);
     for (var uuid in nodes) {
       workingNodes[uuid] = nodes[uuid];
     }
@@ -589,12 +613,12 @@ function filterByWorkingSet() {
 
   connectedToWorkingNode = {};
   workingLinks = [];
-  console.log(allLinks);
+  // console.log(allLinks);
   for (var key in allLinks) {
     links = allLinks[key];
     for (var i in links) {
       link = links[i];
-      console.log(key, link, i);
+      // console.log(key, link, i);
       if (link.source["uuid"] in workingNodes && link.target["uuid"] in workingNodes) {
         workingLinks.push(link);
 
@@ -719,7 +743,7 @@ function viewDocument(url) {
 }
 
 function searchAround(uuid, key) {
-  console.log(uuid, key);
+  // console.log(uuid, key);
   var node = uuidToNode[uuid];
   var type = node["__data__"]["type"];
   var relation = key;
@@ -728,6 +752,12 @@ function searchAround(uuid, key) {
     if (!(type in workingSet)) workingSet[type] = {};
     workingSet[type][uuid] = node;
     return;
+  }
+  if (relation == "RemoveFromWorkingSet") {
+    if (type in workingSet && uuid in workingSet[type]) {
+      delete workingSet[type][uuid];
+      return;
+    }
   }
 
   if (type == "document") {
@@ -747,8 +777,8 @@ function searchAround(uuid, key) {
     if (relation == "Cites") alert("Bad search-around.");
   }
   var searchAroundUrl = "http://localhost:5000/searchAround/" + type + "/" + uuid + "/" + relation + "/" + direction;
-  console.log(searchAroundUrl);
-  console.log(workingSet);
+  // console.log(searchAroundUrl);
+  // console.log(workingSet);
 
   $.get(searchAroundUrl, function(queryResults) {
     var relationships = queryResults["relationships"];
@@ -784,11 +814,11 @@ function populateUuidNodeMap() {
   
   gnodesArr = gnodes[0];
   var gindexes = Object.keys(gnodesArr);
-  console.log(gnodesArr);
+  // console.log(gnodesArr);
   for (var i=0; i<gindexes.length-1; i++) {
-    console.log(i);
+    // console.log(i);
     var gnode = gnodesArr[i];
-    console.log(gnode);
+    // console.log(gnode);
     var key = "__data__";
     var gnodeAttrs = gnode[key];
     var gnodeAttrKeys = Object.keys(gnodeAttrs);
@@ -804,7 +834,7 @@ function populateUuidNodeMap() {
     // console.log(node);
     uuidToNode[node["uuid"]] = node;
   }
-  console.log(uuidToNode);
+  // console.log(uuidToNode);
 }
 
 var zoomBool = true;
